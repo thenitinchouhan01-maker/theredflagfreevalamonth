@@ -78,7 +78,7 @@ async function startServer() {
       console.log(`  CORS:            ${configSummary.cors}`);
       console.log(`  Real Credentials: ${configSummary.hasRealCredentials ? '✅ Yes' : '⚠️  No (using test values)'}`);
       console.log('='.repeat(60));
-      console.log(`  Health Check:    http://localhost:${PORT}/api/health`);
+      console.log(`  Health Check:    http://localhost:${PORT}/health`);
       console.log(`  API Base:        http://localhost:${PORT}/api`);
       console.log('='.repeat(60) + '\n');
       
