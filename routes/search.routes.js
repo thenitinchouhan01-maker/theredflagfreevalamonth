@@ -6,12 +6,13 @@ const { createSearchSchema } = require('../validators/search.validator');
 const { identifyUser } = require('./user.routes');
 const { requireCredits, deductCredit } = require('../middlewares/creditCheck');
 
+// CRITICAL FIX: Deduct credit BEFORE creating search to prevent orphan searches
 router.post('/', 
   identifyUser, 
   validateBody(createSearchSchema), 
   requireCredits,
-  searchController.createSearch,
-  deductCredit
+  deductCredit,
+  searchController.createSearch
 );
 
 router.get('/', identifyUser, searchController.getUserSearches);
