@@ -14,7 +14,14 @@ const paymentSchema = new mongoose.Schema(
     },
     razorpayOrderId: {
       type: String,
-      required: [true, 'Razorpay Order ID is required']
+      required: [true, 'Razorpay Order ID is required'],
+      trim: true,
+      validate: {
+        validator: function(v) {
+          return v && v.length > 0;
+        },
+        message: 'Razorpay Order ID cannot be empty'
+      }
     },
     razorpayPaymentId: {
       type: String,

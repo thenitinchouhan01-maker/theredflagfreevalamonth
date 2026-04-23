@@ -6,97 +6,106 @@ const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const logger = require('../utils/logger');
 
-/**
- * Get Razorpay instance with validation
- * Throws error if credentials are missing
- */
-const getRazorpayInstance = () => {
-  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    logger.error('Razorpay credentials missing in environment');
-    throw new Error('Razorpay configuration error. Please contact support.');
-  }
-
-  return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
-  });
-};
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔑 DEBUG: Log Razorpay credentials on startup
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+console.log('\n🔑 [RAZORPAY] Checking credentials...');
+console.log('🔑 KEY_ID:', process.env.RAZORPAY_KEY_ID || '❌ MISSING');
+console.log('🔑 KEY_SECRET EXISTS:', !!process.env.RAZORPAY_KEY_SECRET ? '✅ YES' : '❌ NO');
+if (process.env.RAZORPAY_KEY_SECRET) {
+  console.log('🔑 KEY_SECRET LENGTH:', process.env.RAZORPAY_KEY_SECRET.length);
+  console.log('🔑 KEY_SECRET PREVIEW:', process.env.RAZORPAY_KEY_SECRET.substring(0, 10) + '...');
+}
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 class PaymentService {
+
   /**
-   * Create Razorpay order for a plan
+   * 🔴 FINAL FIX: Create Razorpay order with STRICT flow
+   * CRITICAL: Razorpay MUST succeed BEFORE any database insert
    * @param {Object} params - { userId, planId }
-   * @returns {Object} Order details with Razorpay key
+   * @returns {Object} Order details
    */
   async createOrder({ userId, planId }) {
     try {
-      // Validate planId
-      if (!planId) {
-        throw AppError.badRequest('Plan ID is required', 'PLAN_ID_REQUIRED');
-      }
+      console.log('\n💳 [CREATE ORDER] Starting...');
+      console.log('User ID:', userId?.toString());
+      console.log('Plan ID:', planId?.toString());
 
-      // Get plan details
-      const plan = await Plan.findActiveById(planId);
+      // STEP 1: Get plan from database
+      const plan = await Plan.findById(planId);
       if (!plan) {
-        throw AppError.notFound('Plan not found or inactive', 'PLAN_NOT_FOUND');
+        throw new Error('Plan not found');
       }
+      console.log('✅ Plan found:', plan.name, '- Price:', plan.price, '- Credits:', plan.credits);
 
-      // Get Razorpay instance
-      const razorpay = getRazorpayInstance();
-
-      // Convert to paise (1 INR = 100 paise)
-      const amountInPaise = Math.round(plan.price * 100);
-
-      // Create Razorpay order
-      const razorpayOrder = await razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: `receipt_${Date.now()}_${userId.toString().slice(-6)}`,
-        notes: {
-          userId: userId.toString(),
-          planId: planId.toString(),
-          planName: plan.name,
-          credits: plan.credits.toString()
-        }
+      // STEP 2: Create Razorpay instance (fresh instance each time)
+      const Razorpay = require('razorpay');
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID.trim(),
+        key_secret: process.env.RAZORPAY_KEY_SECRET.trim()
       });
+      console.log('✅ Razorpay instance created');
 
-      // Save payment record in database
+      // STEP 3: Prepare order data
+      const orderData = {
+        amount: plan.price * 100,  // Convert to paise
+        currency: 'INR',
+        receipt: `rcpt_${Date.now()}`
+      };
+
+      console.log('\n📦 ORDER DATA:', JSON.stringify(orderData, null, 2));
+
+      // STEP 4: Call Razorpay API (CRITICAL - MUST succeed before DB insert)
+      console.log('\n🚀 Calling Razorpay API...');
+      const order = await razorpay.orders.create(orderData);
+
+      console.log('\n✅ Razorpay Response:', JSON.stringify(order, null, 2));
+
+      // STEP 5: STRICT VALIDATION - order MUST have id
+      if (!order || !order.id) {
+        throw new Error('Razorpay did not return order id');
+      }
+      console.log('✅ Order ID validated:', order.id);
+
+      // STEP 6: ONLY NOW save to database (Razorpay succeeded)
+      console.log('\n💾 Saving to database...');
       const payment = await Payment.create({
         userId,
         planId,
-        razorpayOrderId: razorpayOrder.id,
+        razorpayOrderId: order.id,  // GUARANTEED to be non-null
         amount: plan.price,
         currency: 'INR',
         status: 'created'
       });
 
-      logger.info('Razorpay order created', {
-        userId: userId.toString(),
-        planId: planId.toString(),
-        orderId: razorpayOrder.id,
-        amount: plan.price,
-        credits: plan.credits
-      });
+      console.log('✅ Payment saved to database:', payment._id);
+      console.log('✅ razorpayOrderId in DB:', payment.razorpayOrderId);
 
-      // Return order details (NEVER expose key_secret)
-      return {
-        orderId: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        keyId: process.env.RAZORPAY_KEY_ID,  // Safe to expose (public key)
-        planName: plan.name,
-        credits: plan.credits
+      // STEP 7: Return response
+      const response = {
+        order: {
+          id: order.id,
+          amount: order.amount,
+          currency: order.currency,
+          keyId: process.env.RAZORPAY_KEY_ID.trim()
+        }
       };
-    } catch (error) {
-      if (error instanceof AppError) throw error;
 
-      logger.error('Error creating Razorpay order', {
-        error: error.message,
-        stack: error.stack,
-        userId: userId.toString(),
-        planId: planId?.toString()
-      });
-      throw AppError.internal('Failed to create payment order', 'ORDER_CREATE_FAILED');
+      console.log('\n✅ [SUCCESS] Order created successfully!');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+      return response;
+
+    } catch (err) {
+      console.error('\n🔥 FINAL ERROR:', err.message);
+      console.error('🔥 Error stack:', err.stack);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      
+      throw AppError.internal(
+        `Payment order creation failed: ${err.message}`,
+        'ORDER_CREATE_FAILED'
+      );
     }
   }
 
@@ -114,9 +123,10 @@ class PaymentService {
       }
 
       // STEP 1: VERIFY SIGNATURE (CRITICAL SECURITY CHECK)
+      const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
       const body = razorpay_order_id + '|' + razorpay_payment_id;
       const expectedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .createHmac('sha256', keySecret)
         .update(body.toString())
         .digest('hex');
 
@@ -131,7 +141,7 @@ class PaymentService {
       }
 
       // STEP 2: GET PAYMENT RECORD
-      const payment = await Payment.findByOrderId(razorpay_order_id);
+      const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id }).populate('planId');
 
       if (!payment) {
         throw AppError.notFound('Payment record not found', 'PAYMENT_NOT_FOUND');
@@ -227,7 +237,12 @@ class PaymentService {
    */
   async getUserPayments(userId, options = {}) {
     try {
-      const payments = await Payment.getUserPayments(userId, options);
+      const { limit = 20, skip = 0 } = options;
+      const payments = await Payment.find({ userId })
+        .populate('planId', 'name credits price')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
       return payments;
     } catch (error) {
       logger.error('Error fetching user payments', {
