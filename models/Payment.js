@@ -15,6 +15,8 @@ const paymentSchema = new mongoose.Schema(
     razorpayOrderId: {
       type: String,
       required: [true, 'Razorpay Order ID is required'],
+      unique: true,
+      sparse: true,
       trim: true,
       validate: {
         validator: function(v) {

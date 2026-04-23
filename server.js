@@ -1,5 +1,6 @@
 require('dotenv').config();
 const app = require('./app');
+const mongoose = require('mongoose');
 const { config, validateEnv, getConfigSummary } = require('./config/env');
 const logger = require('./utils/logger');
 
@@ -9,6 +10,48 @@ validateEnv();
 let PORT = config.port;
 const MAX_PORT_ATTEMPTS = 10;
 let server = null;
+
+/**
+ * 🧹 PERMANENT FIX: Clean payment collection and ensure correct indexes
+ */
+const fixPaymentCollection = async () => {
+  try {
+    const db = mongoose.connection.db;
+    const collection = db.collection('payments');
+
+    console.log('🧹 Fixing payment collection...');
+
+    // Delete bad records with null/empty razorpayOrderId
+    const deleteResult = await collection.deleteMany({
+      $or: [
+        { razorpayOrderId: null },
+        { razorpayOrderId: '' },
+        { razorpayOrderId: { $exists: false } }
+      ]
+    });
+
+    if (deleteResult.deletedCount > 0) {
+      console.log(`🗑️  Deleted ${deleteResult.deletedCount} bad payment record(s)`);
+    }
+
+    // Create correct index (will skip if already exists)
+    await collection.createIndex(
+      { razorpayOrderId: 1 },
+      { unique: true, sparse: true }
+    );
+
+    console.log('✅ Payment DB ready');
+
+  } catch (err) {
+    console.error('❌ Fix error:', err.message);
+  }
+};
+
+// Run fix after MongoDB connection is established
+mongoose.connection.once('open', () => {
+  console.log('✅ MongoDB connection established');
+  fixPaymentCollection();
+});
 
 /**
  * Find available port starting from the configured port
