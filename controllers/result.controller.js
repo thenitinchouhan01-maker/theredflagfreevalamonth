@@ -24,9 +24,17 @@ class ResultController {
       });
     }
 
-    // Service now returns clean formatted response
+    // Return result with safe fallback
     const response = new ApiResponse(res);
-    response.success({ result });
+    response.success({ 
+      result: result || {
+        summary: { summaryText: 'No results found' },
+        matchedProfiles: [],
+        imageMatches: [],
+        flags: [],
+        hasResults: false
+      }
+    });
   });
 
   /**

@@ -61,6 +61,9 @@ class UploadService {
 
       // Check if R2 is configured
       if (!this.bucketName || !config.r2.accessKeyId) {
+        console.error('UPLOAD_ERROR: Storage not configured');
+        console.error('bucketName:', this.bucketName);
+        console.error('accessKeyId:', config.r2.accessKeyId ? 'SET' : 'NOT SET');
         throw AppError.internal('Storage not configured', 'STORAGE_NOT_CONFIGURED');
       }
 
@@ -105,9 +108,12 @@ class UploadService {
       return upload;
     } catch (error) {
       if (error instanceof AppError) throw error;
+      console.error('UPLOAD_ERROR:', error);
+      console.error('STACK:', error.stack);
       logger.error('Error uploading image to R2', {
         error: error.message,
-        userId
+        stack: error.stack,
+        userId: userId?.toString()
       });
       throw AppError.internal('Failed to upload image', 'UPLOAD_FAILED');
     }

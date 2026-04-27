@@ -25,13 +25,28 @@ class SerperWebProvider extends WebSourceProvider {
    * @returns {Promise<Object>} Web search results
    */
   async searchSources(context) {
+    console.log('═══════════════════════════════════════');
+    console.log('SERPER PROVIDER CALLED');
+    console.log('enabled:', this.enabled);
+    console.log('apiKeyExists:', !!this.apiKey);
+    console.log('apiKeyLength:', this.apiKey?.length || 0);
+    console.log('═══════════════════════════════════════');
+
     if (!this.enabled) {
+      console.log('❌ SERPER DISABLED - returning empty');
       return this.getEmptyResult('API key not configured');
     }
 
     try {
       const query = this.buildSearchQuery(context);
       
+      console.log('═══════════════════════════════════════');
+      console.log('SERPER REQUEST');
+      console.log('query:', query);
+      console.log('endpoint:', this.baseUrl);
+      console.log('apiKey (first 10 chars):', this.apiKey?.substring(0, 10) + '...');
+      console.log('═══════════════════════════════════════');
+
       logger.info('Serper web search', { query });
 
       const response = await axios.post(
@@ -46,8 +61,28 @@ class SerperWebProvider extends WebSourceProvider {
         }
       );
 
+      console.log('═══════════════════════════════════════');
+      console.log('SERPER RESPONSE RECEIVED');
+      console.log('status:', response.status);
+      console.log('statusText:', response.statusText);
+      console.log('data keys:', Object.keys(response.data || {}));
+      console.log('organic results count:', response.data?.organic?.length || 0);
+      console.log('═══════════════════════════════════════');
+      console.log('SERPER RAW RESPONSE:');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('═══════════════════════════════════════');
+
       const results = this.normalizeResults(response.data);
       
+      console.log('═══════════════════════════════════════');
+      console.log('SERPER NORMALIZED RESULTS');
+      console.log('profiles count:', results.profiles.length);
+      console.log('sources count:', results.sources.length);
+      if (results.profiles.length > 0) {
+        console.log('First profile:', JSON.stringify(results.profiles[0], null, 2));
+      }
+      console.log('═══════════════════════════════════════');
+
       logger.info('Serper search completed', { 
         resultsCount: results.profiles.length 
       });
@@ -64,6 +99,15 @@ class SerperWebProvider extends WebSourceProvider {
       };
 
     } catch (error) {
+      console.error('═══════════════════════════════════════');
+      console.error('SERPER API ERROR');
+      console.error('error message:', error.message);
+      console.error('error code:', error.code);
+      console.error('response status:', error.response?.status);
+      console.error('response data:', JSON.stringify(error.response?.data, null, 2));
+      console.error('stack:', error.stack);
+      console.error('═══════════════════════════════════════');
+
       logger.error('Serper API error', { 
         error: error.message,
         status: error.response?.status 
@@ -102,18 +146,41 @@ class SerperWebProvider extends WebSourceProvider {
    * @returns {Object} Normalized results
    */
   normalizeResults(data) {
+    console.log('═══════════════════════════════════════');
+    console.log('NORMALIZING SERPER RESULTS');
+    console.log('data.organic exists:', !!data.organic);
+    console.log('data.organic length:', data.organic?.length || 0);
+    console.log('═══════════════════════════════════════');
+
     const profiles = [];
     const sources = [];
     const seenUrls = new Set();
 
     if (data.organic) {
+      console.log('Processing', data.organic.length, 'organic results...');
+      
       for (const result of data.organic) {
-        if (seenUrls.has(result.link)) continue;
+        console.log('---');
+        console.log('Result:', {
+          position: result.position,
+          title: result.title,
+          link: result.link,
+          snippet: result.snippet?.substring(0, 100)
+        });
+
+        if (seenUrls.has(result.link)) {
+          console.log('❌ Skipped: duplicate URL');
+          continue;
+        }
         seenUrls.add(result.link);
 
         const platform = this.extractPlatform(result.link);
+        console.log('Extracted platform:', platform);
         
-        if (this.isValidPlatform(platform)) {
+        const isValid = this.isValidPlatform(platform);
+        console.log('Is valid platform:', isValid);
+
+        if (isValid) {
           const profile = {
             platform,
             username: this.extractUsername(result.link, platform),
@@ -128,6 +195,13 @@ class SerperWebProvider extends WebSourceProvider {
             }
           };
 
+          console.log('✅ Profile created:', {
+            platform: profile.platform,
+            username: profile.username,
+            displayName: profile.displayName,
+            confidence: profile.confidence
+          });
+
           profiles.push(profile);
           
           sources.push({
@@ -137,9 +211,19 @@ class SerperWebProvider extends WebSourceProvider {
             resultsCount: 1,
             status: 'success'
           });
+        } else {
+          console.log('❌ Skipped: invalid platform');
         }
       }
+    } else {
+      console.log('❌ No organic results in response');
     }
+
+    console.log('═══════════════════════════════════════');
+    console.log('NORMALIZATION COMPLETE');
+    console.log('Total profiles created:', profiles.length);
+    console.log('Total sources created:', sources.length);
+    console.log('═══════════════════════════════════════');
 
     return { profiles, sources };
   }

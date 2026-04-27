@@ -12,22 +12,40 @@ class MatchAggregator {
    * @returns {Object} Aggregated profiles
    */
   aggregateProfiles(providerResults) {
+    console.log('═══════════════════════════════════════');
+    console.log('MATCH AGGREGATOR - PROFILES');
+    console.log('providerResults count:', providerResults.length);
+    
     const allProfiles = [];
     const seenProfiles = new Map(); // key: platform_username
 
-    for (const result of providerResults) {
-      if (!result.profiles || !Array.isArray(result.profiles)) continue;
+    for (let i = 0; i < providerResults.length; i++) {
+      const result = providerResults[i];
+      console.log(`Provider ${i + 1}:`);
+      console.log('  - has profiles:', !!result.profiles);
+      console.log('  - is array:', Array.isArray(result.profiles));
+      console.log('  - profiles count:', result.profiles?.length || 0);
+      
+      if (!result.profiles || !Array.isArray(result.profiles)) {
+        console.log('  ❌ Skipping: invalid profiles array');
+        continue;
+      }
 
       for (const profile of result.profiles) {
         const key = `${profile.platform}_${profile.username}`.toLowerCase();
+        console.log('  - Processing profile:', key);
         
         if (seenProfiles.has(key)) {
           // Merge with existing profile (take higher confidence)
           const existing = seenProfiles.get(key);
           if (profile.confidence > existing.confidence) {
+            console.log('    ➡️ Replacing with higher confidence');
             seenProfiles.set(key, profile);
+          } else {
+            console.log('    ➡️ Keeping existing (higher confidence)');
           }
         } else {
+          console.log('    ✅ Adding new profile');
           seenProfiles.set(key, profile);
         }
       }
@@ -37,6 +55,18 @@ class MatchAggregator {
     
     // Sort by confidence descending
     deduplicated.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+
+    console.log('═══════════════════════════════════════');
+    console.log('AGGREGATION RESULT');
+    console.log('Total unique profiles:', deduplicated.length);
+    if (deduplicated.length > 0) {
+      console.log('Top profile:', {
+        platform: deduplicated[0].platform,
+        username: deduplicated[0].username,
+        confidence: deduplicated[0].confidence
+      });
+    }
+    console.log('═══════════════════════════════════════');
 
     logger.debug('Profiles aggregated', {
       totalProviders: providerResults.length,

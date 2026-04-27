@@ -177,6 +177,15 @@ const resultSchema = new mongoose.Schema(
       summaryText: {
         type: String,
         trim: true
+      },
+      hasResults: {
+        type: Boolean,
+        default: false
+      },
+      fallbackType: {
+        type: String,
+        enum: ['relationship_advisory', null],
+        default: null
       }
     },
     matchedProfiles: [profileSchema],

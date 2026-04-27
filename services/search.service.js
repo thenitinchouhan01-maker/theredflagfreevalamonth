@@ -76,6 +76,14 @@ class SearchService {
       // Update status to processing
       await search.startProcessing();
 
+      console.log('═══════════════════════════════════════');
+      console.log('SEARCH PROCESSING STARTED');
+      console.log('searchId:', search._id.toString());
+      console.log('searchType:', search.searchType);
+      console.log('nameQuery:', search.nameQuery);
+      console.log('usernameQuery:', search.usernameQuery);
+      console.log('═══════════════════════════════════════');
+
       logger.info('Processing search through pipeline', {
         searchId: search._id.toString(),
         searchType: search.searchType
@@ -83,6 +91,13 @@ class SearchService {
 
       // Process through the real pipeline
       const reportData = await SearchProcessor.process(search, search.imageId);
+
+      console.log('═══════════════════════════════════════');
+      console.log('SEARCH PROCESSING COMPLETED');
+      console.log('reportData.summary:', JSON.stringify(reportData.summary, null, 2));
+      console.log('reportData.matchedProfiles.length:', reportData.matchedProfiles?.length || 0);
+      console.log('reportData.imageMatches.length:', reportData.imageMatches?.length || 0);
+      console.log('═══════════════════════════════════════');
 
       // Create result from report data
       await this.createResult(search, reportData);
@@ -120,6 +135,17 @@ class SearchService {
    */
   async createResult(search, reportData) {
     try {
+      console.log('═══════════════════════════════════════');
+      console.log('CREATING RESULT FROM REPORT DATA');
+      console.log('searchId:', search._id.toString());
+      console.log('userId:', search.userId.toString());
+      console.log('reportData.summary:', JSON.stringify(reportData.summary, null, 2));
+      console.log('reportData.matchedProfiles.length:', reportData.matchedProfiles?.length || 0);
+      console.log('reportData.imageMatches.length:', reportData.imageMatches?.length || 0);
+      console.log('reportData.flags.length:', reportData.flags?.length || 0);
+      console.log('reportData.sources.length:', reportData.sources?.length || 0);
+      console.log('═══════════════════════════════════════');
+
       const result = await Result.create({
         searchId: search._id,
         userId: search.userId,
@@ -130,6 +156,13 @@ class SearchService {
         sources: reportData.sources,
         rawData: reportData.metadata
       });
+
+      console.log('═══════════════════════════════════════');
+      console.log('RESULT CREATED SUCCESSFULLY');
+      console.log('resultId:', result._id.toString());
+      console.log('result.summary:', JSON.stringify(result.summary, null, 2));
+      console.log('result.matchedProfiles.length:', result.matchedProfiles?.length || 0);
+      console.log('═══════════════════════════════════════');
 
       logger.info('Result created from pipeline', {
         resultId: result._id.toString(),
@@ -151,6 +184,11 @@ class SearchService {
 
       return result;
     } catch (error) {
+      console.error('═══════════════════════════════════════');
+      console.error('ERROR CREATING RESULT');
+      console.error('error:', error.message);
+      console.error('stack:', error.stack);
+      console.error('═══════════════════════════════════════');
       logger.error('Error creating result', { 
         error: error.message, 
         searchId: search._id 

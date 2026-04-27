@@ -39,9 +39,9 @@ class ReportBuilder {
         // Cap confidence at 20 when no data exists
         summary.overallConfidence = Math.min(summary.overallConfidence, 20);
 
-        // Override summary text to reflect reality
-        summary.summaryText =
-          'No strong matches found. Results may be inaccurate or unavailable.';
+        // Override summary text with fallback advisory
+        summary.summaryText = this.generateFallbackSummary(context);
+        summary.fallbackType = 'relationship_advisory';
 
         logger.warn('Confidence corrected due to no data', {
           originalConfidence: originalConfidence,
@@ -49,7 +49,8 @@ class ReportBuilder {
           aiConfidence: aiSummary?.identityConfidence,
           profiles: aggregatedData.profiles?.length || 0,
           images: aggregatedData.imageMatches?.length || 0,
-          reason: 'AI hallucination prevention'
+          reason: 'AI hallucination prevention',
+          fallbackApplied: true
         });
                                 } else {
         // Data strength validation: normalize confidence based on actual data quality
@@ -190,6 +191,8 @@ class ReportBuilder {
     // Extract unique platforms from profiles
     const platformsWithResults = [...new Set(profiles.map(p => p.platform))];
     
+    const hasResults = profiles.length > 0 || imageMatches.length > 0;
+
     return {
       totalProfilesFound: profiles.length,
       totalImageMatches: imageMatches.length,
@@ -198,7 +201,8 @@ class ReportBuilder {
       overallConfidence: aiSummary.identityConfidence || 0,
       summaryText: aiSummary.summary || 'No summary available',
       searchType: context.searchType,
-      hasResults: profiles.length > 0 || imageMatches.length > 0,
+      hasResults,
+      fallbackType: !hasResults ? 'relationship_advisory' : null,
       // AI-specific fields (optional, for enhanced data)
       riskLevel: aiSummary.riskLevel,
       riskFlags: aiSummary.riskFlags || [],
@@ -225,8 +229,10 @@ class ReportBuilder {
       aggregatedData.imageMatches || []
     );
 
-    // Build summary text
+    // Build summary text (with fallback advisory if no results)
     const summaryText = this.buildSummaryText(totalProfiles, totalImageMatches, context);
+
+    const hasResults = totalProfiles > 0 || totalImageMatches > 0;
 
     return {
       totalProfilesFound: totalProfiles,
@@ -236,7 +242,8 @@ class ReportBuilder {
       overallConfidence,
       summaryText,
       searchType: context.searchType,
-      hasResults: totalProfiles > 0 || totalImageMatches > 0
+      hasResults,
+      fallbackType: !hasResults ? 'relationship_advisory' : null
     };
   }
 
@@ -279,8 +286,9 @@ class ReportBuilder {
    * @returns {string} Summary text
    */
   buildSummaryText(profileCount, imageCount, context) {
+    // SAFE FALLBACK: When no results found, provide relationship advisory
     if (profileCount === 0 && imageCount === 0) {
-      return 'No matching profiles or images found for this search.';
+      return this.generateFallbackSummary(context);
     }
 
     const parts = [];
@@ -306,6 +314,36 @@ class ReportBuilder {
     }
 
     return text + '.';
+  }
+
+  /**
+   * Generate fallback advisory summary when no results found
+   * @param {Object} context - Search context
+   * @returns {string} Fallback advisory text
+   */
+  generateFallbackSummary(context) {
+    const query = context.queries?.name?.original || 
+                  context.queries?.username?.original || 
+                  'this search';
+
+    return `⚠️ Limited data found for "${query}".
+
+Based on behavioral analysis, profiles with low public presence can sometimes indicate:
+• Hidden or private online activity
+• Selective visibility on platforms
+• Possible avoidance patterns
+
+🔴 Red Flag Insight:
+Lack of digital footprint does not guarantee safety. In many cases, individuals with minimal trace can still have undisclosed behaviors.
+
+❤️ Relationship Advice:
+• Trust actions more than words
+• Maintain open communication
+• Avoid ignoring repeated gut feelings
+• Respect your own boundaries
+• Don't over-invest emotionally too early
+
+Stay aware. Stay safe.`;
   }
 
   /**
@@ -409,9 +447,10 @@ class ReportBuilder {
         platformsSearched: this.getPlatformsSearched(context),
         platformsWithResults: [],
         overallConfidence: 0,
-        summaryText: 'No matching profiles or images found for this search.',
+        summaryText: this.generateFallbackSummary(context),
         searchType: context.searchType,
-        hasResults: false
+        hasResults: false,
+        fallbackType: 'relationship_advisory'
       },
       matchedProfiles: [],
       imageMatches: [],

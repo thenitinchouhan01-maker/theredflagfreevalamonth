@@ -13,6 +13,9 @@ class UploadController {
     const file = req.file;
 
     if (!file) {
+      console.error('UPLOAD_ERROR: No file in request');
+      console.error('req.file:', req.file);
+      console.error('req.body:', req.body);
       return next(AppError.badRequest('No image file provided', 'NO_FILE'));
     }
 

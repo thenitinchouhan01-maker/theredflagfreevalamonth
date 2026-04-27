@@ -12,6 +12,12 @@ class ResultService {
    */
   async getResultBySearchId(searchId, userId) {
     try {
+      console.log('═══════════════════════════════════════');
+      console.log('FETCHING RESULT BY SEARCH ID');
+      console.log('searchId:', searchId);
+      console.log('userId:', userId.toString());
+      console.log('═══════════════════════════════════════');
+
       // First verify the search belongs to the user
       const search = await Search.findOne({ _id: searchId, userId });
       
@@ -19,8 +25,25 @@ class ResultService {
         throw AppError.notFound('Search not found', 'SEARCH_NOT_FOUND');
       }
 
+      console.log('Search found:', {
+        searchId: search._id.toString(),
+        status: search.status,
+        progress: search.progress
+      });
+
       const result = await Result.findBySearchId(searchId)
         .populate('searchId', 'searchType nameQuery usernameQuery status createdAt userId');
+
+      console.log('Result query executed');
+      console.log('result found:', !!result);
+      
+      if (result) {
+        console.log('result._id:', result._id.toString());
+        console.log('result.summary:', JSON.stringify(result.summary, null, 2));
+        console.log('result.matchedProfiles.length:', result.matchedProfiles?.length || 0);
+        console.log('result.imageMatches.length:', result.imageMatches?.length || 0);
+      }
+      console.log('═══════════════════════════════════════');
 
       if (!result) {
         // Result might not be ready yet
@@ -39,7 +62,9 @@ class ResultService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       
-      logger.error('Error getting result', { error: error.message, searchId });
+      console.error('RESULT_FETCH_ERROR:', error);
+      console.error('STACK:', error.stack);
+      logger.error('Error getting result', { error: error.message, stack: error.stack, searchId });
       throw AppError.internal('Failed to get result', 'RESULT_GET_FAILED');
     }
   }
@@ -107,26 +132,28 @@ class ResultService {
    * @returns {Object} Formatted result
    */
   formatResultResponse(result) {
+    const matchedProfiles = result.matchedProfiles || [];
+    const imageMatches = result.imageMatches || [];
+    
     return {
       id: result._id,
-      status: result.status,
-      summary: result.summary,
-      matchedProfiles: result.matchedProfiles || [],
-      imageMatches: result.imageMatches || [],
+      searchId: result.searchId?._id || result.searchId,
+      summary: result.summary || {
+        totalProfilesFound: 0,
+        totalImageMatches: 0,
+        platformsSearched: [],
+        platformsWithResults: [],
+        overallConfidence: 0,
+        summaryText: 'No results found'
+      },
+      matchedProfiles,
+      imageMatches,
       flags: result.flags || [],
       sources: result.sources || [],
-      hasResults: result.hasResults,
-      platformsCount: result.platformsCount,
+      hasResults: matchedProfiles.length > 0 || imageMatches.length > 0,
+      platformsCount: matchedProfiles.length,
       createdAt: result.createdAt,
-      updatedAt: result.updatedAt,
-      search: result.searchId ? {
-        id: result.searchId._id,
-        searchType: result.searchId.searchType,
-        nameQuery: result.searchId.nameQuery,
-        usernameQuery: result.searchId.usernameQuery,
-        status: result.searchId.status,
-        createdAt: result.searchId.createdAt
-      } : null
+      updatedAt: result.updatedAt
     };
   }
 

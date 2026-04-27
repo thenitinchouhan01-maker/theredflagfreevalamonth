@@ -85,6 +85,11 @@ class SearchProcessor {
    * @returns {Promise<Object>} Provider results
    */
   async orchestrateProviders(context, search) {
+    console.log('═══════════════════════════════════════');
+    console.log('ORCHESTRATING PROVIDERS');
+    console.log('searchType:', context.searchType);
+    console.log('═══════════════════════════════════════');
+
     const results = {
       profiles: [],
       imageMatches: [],
@@ -97,18 +102,21 @@ class SearchProcessor {
     switch (context.searchType) {
       case 'name':
       case 'username':
+        console.log('➡️ Calling web provider for name/username search');
         providerCalls.push(
           this.callWebProvider(context, search)
         );
         break;
 
       case 'photo':
+        console.log('➡️ Calling image provider for photo search');
         providerCalls.push(
           this.callImageProvider(context, search)
         );
         break;
 
       case 'mixed':
+        console.log('➡️ Calling web + image providers for mixed search');
         providerCalls.push(
           this.callWebProvider(context, search),
           this.callImageProvider(context, search)
@@ -119,9 +127,20 @@ class SearchProcessor {
     // Execute provider calls in parallel
     const providerResults = await Promise.allSettled(providerCalls);
 
+    console.log('═══════════════════════════════════════');
+    console.log('PROVIDER RESULTS');
+    console.log('Total provider calls:', providerResults.length);
+    
     // Collect successful results
-    for (const result of providerResults) {
+    for (let i = 0; i < providerResults.length; i++) {
+      const result = providerResults[i];
+      console.log(`Provider ${i + 1}:`, result.status);
+      
       if (result.status === 'fulfilled' && result.value) {
+        console.log('  - profiles:', result.value.profiles?.length || 0);
+        console.log('  - matches:', result.value.matches?.length || 0);
+        console.log('  - sources:', result.value.sources?.length || 0);
+        
         if (result.value.profiles) {
           results.profiles.push(result.value);
         }
@@ -135,9 +154,17 @@ class SearchProcessor {
           results.labels = result.value.labels;
         }
       } else if (result.status === 'rejected') {
+        console.log('  ❌ Error:', result.reason?.message);
         logger.warn('Provider call failed', { error: result.reason?.message });
       }
     }
+
+    console.log('═══════════════════════════════════════');
+    console.log('ORCHESTRATION COMPLETE');
+    console.log('profiles arrays:', results.profiles.length);
+    console.log('imageMatches arrays:', results.imageMatches.length);
+    console.log('sources arrays:', results.sources.length);
+    console.log('═══════════════════════════════════════');
 
     return results;
   }
@@ -202,6 +229,13 @@ class SearchProcessor {
    * @returns {Object} Aggregated data
    */
   aggregateResults(providerResults) {
+    console.log('═══════════════════════════════════════');
+    console.log('AGGREGATING RESULTS');
+    console.log('profiles arrays to aggregate:', providerResults.profiles.length);
+    console.log('imageMatches arrays to aggregate:', providerResults.imageMatches.length);
+    console.log('sources arrays to aggregate:', providerResults.sources.length);
+    console.log('═══════════════════════════════════════');
+
     const aggregated = {
       profiles: [],
       imageMatches: [],
@@ -210,21 +244,40 @@ class SearchProcessor {
 
     // Aggregate profiles
     if (providerResults.profiles.length > 0) {
+      console.log('Aggregating profiles...');
       const profileAgg = MatchAggregator.aggregateProfiles(providerResults.profiles);
       aggregated.profiles = profileAgg.profiles;
+      console.log('Aggregated profiles count:', aggregated.profiles.length);
+    } else {
+      console.log('❌ No profile arrays to aggregate');
     }
 
     // Aggregate image matches
     if (providerResults.imageMatches.length > 0) {
+      console.log('Aggregating image matches...');
       const imageAgg = MatchAggregator.aggregateImageMatches(providerResults.imageMatches);
       aggregated.imageMatches = imageAgg.matches;
+      console.log('Aggregated image matches count:', aggregated.imageMatches.length);
+    } else {
+      console.log('❌ No image match arrays to aggregate');
     }
 
     // Aggregate sources
     if (providerResults.sources.length > 0) {
+      console.log('Aggregating sources...');
       const sourceAgg = MatchAggregator.aggregateSources(providerResults.sources);
       aggregated.sources = sourceAgg.sources;
+      console.log('Aggregated sources count:', aggregated.sources.length);
+    } else {
+      console.log('❌ No source arrays to aggregate');
     }
+
+    console.log('═══════════════════════════════════════');
+    console.log('AGGREGATION COMPLETE');
+    console.log('Final profiles:', aggregated.profiles.length);
+    console.log('Final imageMatches:', aggregated.imageMatches.length);
+    console.log('Final sources:', aggregated.sources.length);
+    console.log('═══════════════════════════════════════');
 
     return aggregated;
   }
