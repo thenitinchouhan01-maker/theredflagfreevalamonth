@@ -7,9 +7,14 @@ const logger = require('./utils/logger');
 // Validate environment variables before starting
 validateEnv();
 
-let PORT = config.port;
-const MAX_PORT_ATTEMPTS = 10;
+// ✅ RAILWAY OPTIMIZATION: Use Railway's dynamic PORT
+const PORT = parseInt(process.env.PORT) || config.port || 3000;
+const MAX_PORT_ATTEMPTS = process.env.NODE_ENV === 'production' ? 1 : 10;
 let server = null;
+
+console.log('🚀 [RAILWAY] Starting server...');
+console.log('🚀 [RAILWAY] PORT:', PORT);
+console.log('🚀 [RAILWAY] NODE_ENV:', process.env.NODE_ENV || 'development');
 
 /**
  * 🧹 PERMANENT FIX: Clean payment collection and ensure correct indexes
@@ -93,44 +98,69 @@ async function findAvailablePort(startPort, maxAttempts = MAX_PORT_ATTEMPTS) {
 }
 
 /**
- * Start the server with automatic port fallback
+ * Start the server - Railway optimized
  */
 async function startServer() {
   try {
-    // Find available port
-    const availablePort = await findAvailablePort(PORT);
-    
-    if (availablePort !== PORT) {
-      console.log(`\n⚠️  Port ${PORT} is already in use. Using port ${availablePort} instead.\n`);
-      logger.warn(`Port ${PORT} in use, switching to ${availablePort}`);
-      PORT = availablePort;
-    }
-    
-    // Start server on available port
-    server = app.listen(PORT, () => {
-      const configSummary = getConfigSummary();
-      
-      console.log('\n' + '='.repeat(60));
-      console.log('  🚀 DeepTrust API Server Started');
-      console.log('='.repeat(60));
-      console.log(`  Environment:     ${configSummary.environment}`);
-      console.log(`  Port:            ${PORT}`);
-      console.log(`  Database:        ${configSummary.database}`);
-      console.log(`  Razorpay:        ${configSummary.razorpay}`);
-      console.log(`  Storage:         ${configSummary.storage}`);
-      console.log(`  CORS:            ${configSummary.cors}`);
-      console.log(`  Real Credentials: ${configSummary.hasRealCredentials ? '✅ Yes' : '⚠️  No (using test values)'}`);
-      console.log('='.repeat(60));
-      console.log(`  Health Check:    http://localhost:${PORT}/health`);
-      console.log(`  API Base:        http://localhost:${PORT}/api`);
-      console.log('='.repeat(60) + '\n');
-      
-      logger.info('DeepTrust API server running', {
-        port: PORT,
-        environment: config.nodeEnv,
-        hasRealCredentials: configSummary.hasRealCredentials
+    // ✅ RAILWAY: In production, use exact PORT provided by Railway
+    if (process.env.NODE_ENV === 'production') {
+      // Railway provides exact port - don't search for alternatives
+      server = app.listen(PORT, '0.0.0.0', () => {
+        const configSummary = getConfigSummary();
+        
+        console.log('\n' + '='.repeat(60));
+        console.log('  🚀 DeepTrust API Server Started (Railway)');
+        console.log('='.repeat(60));
+        console.log(`  Environment:     ${configSummary.environment}`);
+        console.log(`  Port:            ${PORT}`);
+        console.log(`  Database:        ${configSummary.database}`);
+        console.log(`  Razorpay:        ${configSummary.razorpay}`);
+        console.log(`  Storage:         ${configSummary.storage}`);
+        console.log(`  CORS:            ${configSummary.cors}`);
+        console.log('='.repeat(60));
+        console.log(`  Health Check:    /health`);
+        console.log(`  API Base:        /api`);
+        console.log('='.repeat(60) + '\n');
+        
+        logger.info('DeepTrust API server running on Railway', {
+          port: PORT,
+          environment: config.nodeEnv
+        });
       });
-    });
+    } else {
+      // Development: Find available port
+      const availablePort = await findAvailablePort(PORT);
+      
+      if (availablePort !== PORT) {
+        console.log(`\n⚠️  Port ${PORT} is already in use. Using port ${availablePort} instead.\n`);
+        logger.warn(`Port ${PORT} in use, switching to ${availablePort}`);
+      }
+      
+      server = app.listen(availablePort, () => {
+        const configSummary = getConfigSummary();
+        
+        console.log('\n' + '='.repeat(60));
+        console.log('  🚀 DeepTrust API Server Started');
+        console.log('='.repeat(60));
+        console.log(`  Environment:     ${configSummary.environment}`);
+        console.log(`  Port:            ${availablePort}`);
+        console.log(`  Database:        ${configSummary.database}`);
+        console.log(`  Razorpay:        ${configSummary.razorpay}`);
+        console.log(`  Storage:         ${configSummary.storage}`);
+        console.log(`  CORS:            ${configSummary.cors}`);
+        console.log(`  Real Credentials: ${configSummary.hasRealCredentials ? '✅ Yes' : '⚠️  No (using test values)'}`);
+        console.log('='.repeat(60));
+        console.log(`  Health Check:    http://localhost:${availablePort}/health`);
+        console.log(`  API Base:        http://localhost:${availablePort}/api`);
+        console.log('='.repeat(60) + '\n');
+        
+        logger.info('DeepTrust API server running', {
+          port: availablePort,
+          environment: config.nodeEnv,
+          hasRealCredentials: configSummary.hasRealCredentials
+        });
+      });
+    }
     
     // Handle server-level errors
     server.on('error', (err) => {

@@ -76,20 +76,21 @@ const validateEnv = () => {
 
 /**
  * Configuration object with defaults
+ * ✅ RAILWAY OPTIMIZED: All values use process.env
  */
 const config = {
-  // Server
+  // Server - Railway provides PORT dynamically
   port: parseInt(process.env.PORT) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
   appName: process.env.APP_NAME || 'DeepTrust',
   
-  // Database
+  // Database - Railway MongoDB connection
   mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/deeptrust',
   
   // Razorpay
   razorpay: {
-    keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_key',
-    keySecret: process.env.RAZORPAY_KEY_SECRET || 'test_secret',
+    keyId: process.env.RAZORPAY_KEY_ID || '',
+    keySecret: process.env.RAZORPAY_KEY_SECRET || '',
     webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || ''
   },
   
@@ -104,7 +105,7 @@ const config = {
     publicUrl: process.env.R2_PUBLIC_URL || ''
   },
   
-  // Provider API Keys
+  // Provider API Keys - All from environment
   providers: {
     serperApiKey: process.env.SERPER_API_KEY || '',
     googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
@@ -115,7 +116,7 @@ const config = {
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 min
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || process.env.RATE_LIMIT_MAX) || 100,
   
-  // CORS
+  // CORS - Railway deployment friendly
   cors: {
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : '*'
   },
