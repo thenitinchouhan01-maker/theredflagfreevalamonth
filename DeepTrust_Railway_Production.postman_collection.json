@@ -1,0 +1,604 @@
+{
+  "info": {
+    "name": "DeepTrust API - Railway Production",
+    "description": "Complete API testing for Railway deployed backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health"]
+        },
+        "description": "Check if server is running"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "pm.test('Environment is production', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.environment).to.eql('production');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceId\": \"railway-test-device-001\",\n  \"deviceInfo\": {\n    \"platform\": \"iOS\",\n    \"version\": \"17.0\",\n    \"model\": \"iPhone 15 Pro\",\n    \"manufacturer\": \"Apple\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users"]
+        },
+        "description": "Create anonymous user and get appUserId"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Save appUserId to environment', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('app_user_id', jsonData.data.user.appUserId);",
+              "    console.log('✅ Saved appUserId: ' + jsonData.data.user.appUserId);",
+              "});",
+              "",
+              "pm.test('appUserId starts with DTX-', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.user.appUserId).to.match(/^DTX-/);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Current User",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}",
+            "description": "User authentication header"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me"]
+        },
+        "description": "Get current user details"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('User has credits field', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.user).to.have.property('credits');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get All Plans",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/plans",
+          "host": ["{{base_url}}"],
+          "path": ["api", "plans"]
+        },
+        "description": "Get all available credit plans"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Save first plan ID', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.data.plans && jsonData.data.plans.length > 0) {",
+              "        pm.environment.set('plan_id', jsonData.data.plans[0].id);",
+              "        console.log('✅ Saved planId: ' + jsonData.data.plans[0].id);",
+              "        console.log('Plan: ' + jsonData.data.plans[0].name + ' - ₹' + jsonData.data.plans[0].price);",
+              "    }",
+              "});",
+              "",
+              "pm.test('Plans array is not empty', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.plans.length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Create Payment Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"{{plan_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments/order",
+          "host": ["{{base_url}}"],
+          "path": ["api", "payments", "order"]
+        },
+        "description": "Create Razorpay payment order"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Order ID starts with order_', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.data && jsonData.data.order) {",
+              "        pm.expect(jsonData.data.order.id).to.match(/^order_/);",
+              "        console.log('✅ Order created: ' + jsonData.data.order.id);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": "",
+              "description": "Select JPG/PNG/GIF/WebP image (max 10MB)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/uploads",
+          "host": ["{{base_url}}"],
+          "path": ["api", "uploads"]
+        },
+        "description": "Upload image to Cloudflare R2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Save imageId to environment', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.success && jsonData.data.upload) {",
+              "        pm.environment.set('image_id', jsonData.data.upload.id);",
+              "        console.log('✅ Saved imageId: ' + jsonData.data.upload.id);",
+              "        console.log('File URL: ' + jsonData.data.upload.fileUrl);",
+              "    }",
+              "});",
+              "",
+              "pm.test('Upload has fileUrl', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data.upload).to.have.property('fileUrl');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Create Search (Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"searchType\": \"name\",\n  \"nameQuery\": \"Elon Musk\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/searches",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"]
+        },
+        "description": "Create name-based search (requires credits)"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 or 403', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 403]);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    pm.test('Save searchId to environment', function () {",
+              "        var jsonData = pm.response.json();",
+              "        if (jsonData.success && jsonData.data.search) {",
+              "            pm.environment.set('search_id', jsonData.data.search.id);",
+              "            console.log('✅ Saved searchId: ' + jsonData.data.search.id);",
+              "        }",
+              "    });",
+              "} else if (pm.response.code === 403) {",
+              "    console.log('⚠️ Insufficient credits. Complete payment first.');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Create Search (Image)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"searchType\": \"photo\",\n  \"imageId\": \"{{image_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/searches",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"]
+        },
+        "description": "Create image-based search (requires credits and uploaded image)"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201 or 403', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 403, 404]);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    pm.test('Search created successfully', function () {",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.data.search.searchType).to.eql('photo');",
+              "        console.log('✅ Image search created: ' + jsonData.data.search.id);",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Get Search Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches/{{search_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches", "{{search_id}}", "status"]
+        },
+        "description": "Get search processing status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Status is valid', function () {",
+              "    var jsonData = pm.response.json();",
+              "    var validStatuses = ['pending', 'processing', 'completed', 'failed'];",
+              "    pm.expect(validStatuses).to.include(jsonData.data.status.status);",
+              "    console.log('Search status: ' + jsonData.data.status.status);",
+              "    console.log('Progress: ' + jsonData.data.status.progress + '%');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Get Search By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches/{{search_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches", "{{search_id}}"]
+        },
+        "description": "Get complete search details"
+      }
+    },
+    {
+      "name": "11. Get Search Results",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/results/search/{{search_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "results", "search", "{{search_id}}"]
+        },
+        "description": "Get search results (profiles, images, flags)"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "if (jsonData.data.result) {",
+              "    console.log('✅ Results found!');",
+              "    console.log('Profiles: ' + jsonData.data.result.summary.totalProfilesFound);",
+              "    console.log('Images: ' + jsonData.data.result.summary.totalImageMatches);",
+              "    console.log('Confidence: ' + jsonData.data.result.summary.overallConfidence + '%');",
+              "} else if (jsonData.data.status === 'processing') {",
+              "    console.log('⏳ Still processing... Progress: ' + jsonData.data.progress + '%');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Get User's Searches",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Get all user's searches with pagination"
+      }
+    },
+    {
+      "name": "13. Get User Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/me/stats",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "stats"]
+        },
+        "description": "Get user statistics"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "var jsonData = pm.response.json();",
+              "console.log('📊 User Stats:');",
+              "console.log('Searches: ' + jsonData.data.stats.searches);",
+              "console.log('Payments: ' + jsonData.data.stats.payments);",
+              "console.log('Credits: ' + jsonData.data.stats.credits);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14. Get User Uploads",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/uploads?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "uploads"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        },
+        "description": "Get all user's uploaded images"
+      }
+    },
+    {
+      "name": "15. Get Payment History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/payments/history?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "payments", "history"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Get user's payment history"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://deeptrustgfbfbackend-production.up.railway.app",
+      "type": "string"
+    },
+    {
+      "key": "app_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "image_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "search_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

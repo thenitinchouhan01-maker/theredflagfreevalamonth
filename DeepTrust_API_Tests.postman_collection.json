@@ -1,0 +1,433 @@
+{
+  "info": {
+    "name": "DeepTrust API Tests",
+    "description": "Complete API testing collection for DeepTrust Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has success true', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"deviceId\": \"test-device-001\",\n  \"deviceInfo\": {\n    \"platform\": \"iOS\",\n    \"version\": \"17.0\",\n    \"model\": \"iPhone 15\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test('Save appUserId to environment', function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('app_user_id', jsonData.data.user.appUserId);",
+              "    console.log('Saved appUserId: ' + jsonData.data.user.appUserId);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get Current User",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/me",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me"]
+        }
+      }
+    },
+    {
+      "name": "4. Get All Plans",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/plans",
+          "host": ["{{base_url}}"],
+          "path": ["api", "plans"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Save first plan ID', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.data.plans.length > 0) {",
+              "        pm.environment.set('plan_id', jsonData.data.plans[0].id);",
+              "        console.log('Saved planId: ' + jsonData.data.plans[0].id);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Create Payment Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"planId\": \"{{plan_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/payments/order",
+          "host": ["{{base_url}}"],
+          "path": ["api", "payments", "order"]
+        }
+      }
+    },
+    {
+      "name": "6. Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "image",
+              "type": "file",
+              "src": "",
+              "description": "Select an image file (JPG/PNG/GIF/WebP)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/uploads",
+          "host": ["{{base_url}}"],
+          "path": ["api", "uploads"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Save imageId to environment', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.success && jsonData.data.upload) {",
+              "        pm.environment.set('image_id', jsonData.data.upload.id);",
+              "        console.log('Saved imageId: ' + jsonData.data.upload.id);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Create Search (Name)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"searchType\": \"name\",\n  \"nameQuery\": \"John Doe\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/searches",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Save searchId to environment', function () {",
+              "    var jsonData = pm.response.json();",
+              "    if (jsonData.success && jsonData.data.search) {",
+              "        pm.environment.set('search_id', jsonData.data.search.id);",
+              "        console.log('Saved searchId: ' + jsonData.data.search.id);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Create Search (Image)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"searchType\": \"photo\",\n  \"imageId\": \"{{image_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/searches",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"]
+        }
+      }
+    },
+    {
+      "name": "9. Get Search Status",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches/{{search_id}}/status",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches", "{{search_id}}", "status"]
+        }
+      }
+    },
+    {
+      "name": "10. Get Search By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches/{{search_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches", "{{search_id}}"]
+        }
+      }
+    },
+    {
+      "name": "11. Get Search Results",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/results/search/{{search_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "results", "search", "{{search_id}}"]
+        }
+      }
+    },
+    {
+      "name": "12. Get User's Searches",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/searches?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "searches"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Get User Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/me/stats",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "me", "stats"]
+        }
+      }
+    },
+    {
+      "name": "14. Get User Uploads",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/uploads?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "uploads"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15. Get Payment History",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-app-user-id",
+            "value": "{{app_user_id}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/payments/history?page=1&limit=10",
+          "host": ["{{base_url}}"],
+          "path": ["api", "payments", "history"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "10"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "app_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "image_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "search_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
