@@ -26,6 +26,22 @@ const fixPaymentCollection = async () => {
 
     console.log('🧹 Fixing payment collection...');
 
+    // Get existing indexes
+    const indexes = await collection.indexes();
+    console.log('📋 Existing indexes:', indexes.map(i => i.name).join(', '));
+
+    // Drop duplicate/stale indexes (but not _id_)
+    for (const index of indexes) {
+      if (index.name !== '_id_' && index.name.includes('razorpay')) {
+        try {
+          await collection.dropIndex(index.name);
+          console.log(`✅ Dropped stale index: ${index.name}`);
+        } catch (err) {
+          console.log(`⚠️  Could not drop ${index.name}:`, err.message);
+        }
+      }
+    }
+
     // Delete bad records with null/empty razorpayOrderId
     const deleteResult = await collection.deleteMany({
       $or: [
@@ -40,22 +56,33 @@ const fixPaymentCollection = async () => {
     }
 
     // Create correct index (will skip if already exists)
-    await collection.createIndex(
-      { razorpayOrderId: 1 },
-      { unique: true, sparse: true }
-    );
+    try {
+      await collection.createIndex(
+        { razorpayOrderId: 1 },
+        { unique: true, sparse: true }
+      );
+      console.log('✅ Created razorpayOrderId index');
+    } catch (err) {
+      console.log('⚠️  Index already exists or error:', err.message);
+    }
 
     console.log('✅ Payment DB ready');
 
   } catch (err) {
     console.error('❌ Fix error:', err.message);
+    // Don't throw - let server continue
   }
 };
 
 // Run fix after MongoDB connection is established
-mongoose.connection.once('open', () => {
+mongoose.connection.once('open', async () => {
   console.log('✅ MongoDB connection established');
-  fixPaymentCollection();
+  try {
+    await fixPaymentCollection();
+  } catch (err) {
+    console.error('❌ Payment collection fix failed:', err.message);
+    // Continue anyway - don't crash the server
+  }
 });
 
 /**
@@ -190,14 +217,18 @@ process.on('unhandledRejection', (err) => {
   });
   
   console.error('\n❌ Unhandled Promise Rejection');
-  console.error(err);
+  console.error('Error:', err.message);
+  console.error('Stack:', err.stack);
   
-  if (server) {
-    server.close(() => {
+  // Don't exit immediately in production - log and continue
+  if (process.env.NODE_ENV !== 'production') {
+    if (server) {
+      server.close(() => {
+        process.exit(1);
+      });
+    } else {
       process.exit(1);
-    });
-  } else {
-    process.exit(1);
+    }
   }
 });
 
