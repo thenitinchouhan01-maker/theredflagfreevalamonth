@@ -1,1 +1,66 @@
-const LOG_LEVELS = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 }; const nodeEnv = process.env.NODE_ENV || 'development'; const CURRENT_LOG_LEVEL = nodeEnv === 'production' ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG; const formatMessage = (level, message, meta) => { const timestamp = new Date().toISOString(); const logEntry = { timestamp, level, message, ...meta }; if (nodeEnv === 'production') { return JSON.stringify(logEntry); } let formatted = '[' + timestamp + '] [' + level + '] ' + message; if (meta && Object.keys(meta).length > 0) { formatted += ' ' + JSON.stringify(meta); } return formatted; }; const logger = { error: function(message, meta) { if (CURRENT_LOG_LEVEL >= LOG_LEVELS.ERROR) { console.error(formatMessage('ERROR', message, meta || {})); } }, warn: function(message, meta) { if (CURRENT_LOG_LEVEL >= LOG_LEVELS.WARN) { console.warn(formatMessage('WARN', message, meta || {})); } }, info: function(message, meta) { if (CURRENT_LOG_LEVEL >= LOG_LEVELS.INFO) { console.info(formatMessage('INFO', message, meta || {})); } }, debug: function(message, meta) { if (CURRENT_LOG_LEVEL >= LOG_LEVELS.DEBUG) { console.debug(formatMessage('DEBUG', message, meta || {})); } }, request: function(req, meta) { logger.info(req.method + ' ' + req.originalUrl, Object.assign({ method: req.method, url: req.originalUrl, ip: req.ip, userAgent: req.get('user-agent') }, meta || {})); }, logError: function(error, meta) { var errorMeta = Object.assign({ error: error.message, stack: error.stack, code: error.code, statusCode: error.statusCode }, meta || {}); logger.error(error.message, errorMeta); } }; module.exports = logger;
+const LOG_LEVELS = { ERROR: 0, WARN: 1, INFO: 2, DEBUG: 3 };
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+const CURRENT_LOG_LEVEL = nodeEnv === 'production' ? LOG_LEVELS.INFO : LOG_LEVELS.DEBUG;
+
+const formatMessage = (level, message, meta) => {
+  const timestamp = new Date().toISOString();
+  const logEntry = { timestamp, level, message, ...meta };
+
+  if (nodeEnv === 'production') {
+    return JSON.stringify(logEntry);
+  }
+
+  let formatted = '[' + timestamp + '] [' + level + '] ' + message;
+  if (meta && Object.keys(meta).length > 0) {
+    formatted += ' ' + JSON.stringify(meta);
+  }
+  return formatted;
+};
+
+const logger = {
+  error: function (message, meta) {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.ERROR) {
+      console.error(formatMessage('ERROR', message, meta || {}));
+    }
+  },
+
+  warn: function (message, meta) {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.WARN) {
+      console.warn(formatMessage('WARN', message, meta || {}));
+    }
+  },
+
+  info: function (message, meta) {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.INFO) {
+      console.info(formatMessage('INFO', message, meta || {}));
+    }
+  },
+
+  debug: function (message, meta) {
+    if (CURRENT_LOG_LEVEL >= LOG_LEVELS.DEBUG) {
+      console.debug(formatMessage('DEBUG', message, meta || {}));
+    }
+  },
+
+  request: function (req, meta) {
+    logger.info(req.method + ' ' + req.originalUrl, Object.assign({
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+      userAgent: req.get('user-agent')
+    }, meta || {}));
+  },
+
+  logError: function (error, meta) {
+    var errorMeta = Object.assign({
+      error: error.message,
+      stack: error.stack,
+      code: error.code,
+      statusCode: error.statusCode
+    }, meta || {});
+    logger.error(error.message, errorMeta);
+  }
+};
+
+module.exports = logger;

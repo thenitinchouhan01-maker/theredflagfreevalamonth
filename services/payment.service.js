@@ -40,10 +40,21 @@ class PaymentService {
       console.log('✅ Plan found:', plan.name, '- Price:', plan.price, '- Credits:', plan.credits);
 
       // STEP 2: Create Razorpay instance (fresh instance each time)
+      const keyId = (process.env.RAZORPAY_KEY_ID || '').trim();
+      const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+
+      if (!keyId || !keySecret) {
+        logger.error('Razorpay credentials missing', {
+          hasKeyId: !!keyId,
+          hasKeySecret: !!keySecret
+        });
+        throw AppError.internal('Payment gateway not configured', 'PAYMENT_NOT_CONFIGURED');
+      }
+
       const Razorpay = require('razorpay');
       const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID.trim(),
-        key_secret: process.env.RAZORPAY_KEY_SECRET.trim()
+        key_id: keyId,
+        key_secret: keySecret
       });
       console.log('✅ Razorpay instance created');
 
@@ -88,7 +99,7 @@ class PaymentService {
           id: order.id,
           amount: order.amount,
           currency: order.currency,
-          keyId: process.env.RAZORPAY_KEY_ID.trim()
+          keyId: keyId
         }
       };
 

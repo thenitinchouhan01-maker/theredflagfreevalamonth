@@ -1,1 +1,84 @@
-const rateLimit = require('express-rate-limit'); const { config } = require('../config/env'); const generalLimiter = rateLimit({ windowMs: config.rateLimitWindowMs, max: config.rateLimitMax, message: { success: false, message: 'Too many requests from this IP, please try again later', errorCode: 'RATE_LIMIT_EXCEEDED', timestamp: new Date().toISOString() }, standardHeaders: true, legacyHeaders: false, skipSuccessfulRequests: config.nodeEnv === 'development', keyGenerator: (req) => { return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress; }, handler: (req, res, next, options) => { res.status(429).json(options.message); } }); const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { success: false, message: 'Too many authentication attempts, please try again later', errorCode: 'AUTH_RATE_LIMIT_EXCEEDED', timestamp: new Date().toISOString() }, standardHeaders: true, legacyHeaders: false }); const paymentLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { success: false, message: 'Too many payment attempts, please try again later', errorCode: 'PAYMENT_RATE_LIMIT_EXCEEDED', timestamp: new Date().toISOString() }, standardHeaders: true, legacyHeaders: false }); const searchLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message: { success: false, message: 'Search limit exceeded, please try again later', errorCode: 'SEARCH_RATE_LIMIT_EXCEEDED', timestamp: new Date().toISOString() }, standardHeaders: true, legacyHeaders: false, skip: (req) => { return req.access && req.access.isActive; } }); const uploadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 20, message: { success: false, message: 'Upload limit exceeded, please try again later', errorCode: 'UPLOAD_RATE_LIMIT_EXCEEDED', timestamp: new Date().toISOString() }, standardHeaders: true, legacyHeaders: false }); module.exports = generalLimiter; module.exports.generalLimiter = generalLimiter; module.exports.authLimiter = authLimiter; module.exports.paymentLimiter = paymentLimiter; module.exports.searchLimiter = searchLimiter; module.exports.uploadLimiter = uploadLimiter;
+const rateLimit = require('express-rate-limit');
+const { config } = require('../config/env');
+
+const generalLimiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: config.rateLimitMax,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later',
+    errorCode: 'RATE_LIMIT_EXCEEDED',
+    timestamp: new Date().toISOString()
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: config.nodeEnv === 'development',
+  keyGenerator: (req) => {
+    return req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  },
+  handler: (req, res, next, options) => {
+    res.status(429).json(options.message);
+  }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later',
+    errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
+    timestamp: new Date().toISOString()
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many payment attempts, please try again later',
+    errorCode: 'PAYMENT_RATE_LIMIT_EXCEEDED',
+    timestamp: new Date().toISOString()
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 50,
+  message: {
+    success: false,
+    message: 'Search limit exceeded, please try again later',
+    errorCode: 'SEARCH_RATE_LIMIT_EXCEEDED',
+    timestamp: new Date().toISOString()
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    return req.access && req.access.isActive;
+  }
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: {
+    success: false,
+    message: 'Upload limit exceeded, please try again later',
+    errorCode: 'UPLOAD_RATE_LIMIT_EXCEEDED',
+    timestamp: new Date().toISOString()
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+module.exports = generalLimiter;
+module.exports.generalLimiter = generalLimiter;
+module.exports.authLimiter = authLimiter;
+module.exports.paymentLimiter = paymentLimiter;
+module.exports.searchLimiter = searchLimiter;
+module.exports.uploadLimiter = uploadLimiter;

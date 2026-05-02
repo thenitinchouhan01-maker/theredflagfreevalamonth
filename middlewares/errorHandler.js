@@ -54,11 +54,56 @@ function sendErrorProd(err, res) {
 function errorHandler(err, req, res, next) {
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
-    logger.logError(err, { url: req.originalUrl, method: req.method, ip: req.ip });
+
+    // Comprehensive error logging with full request context
+    const requestContext = {
+        url: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+        appUserId: req.headers['x-app-user-id'] || null,
+        deviceId: req.headers['x-device-id'] || null,
+        statusCode: err.statusCode,
+        errorName: err.name,
+        errorCode: err.errorCode || null
+    };
+
+    // Log body for non-GET requests (helps identify bad payloads causing crashes)
+    if (req.method !== 'GET' && req.body && Object.keys(req.body).length > 0) {
+        // Redact sensitive fields before logging
+        const safeBody = { ...req.body };
+        if (safeBody.razorpay_signature) safeBody.razorpay_signature = '[REDACTED]';
+        if (safeBody.password) safeBody.password = '[REDACTED]';
+        requestContext.body = safeBody;
+    }
+
+    if (err.statusCode >= 500) {
+        logger.error('Server error: ' + err.message, {
+            ...requestContext,
+            stack: err.stack
+        });
+    } else {
+        logger.logError(err, requestContext);
+    }
+
     var error = err;
     if (err.name === 'CastError') error = handleCastError(err);
     if (err.code === 11000) error = handleDuplicateKeyError(err);
     if (err.name === 'ValidationError') error = handleValidationError(err);
+
+    // Handle JWT errors
+    if (err.name === 'JsonWebTokenError') {
+        error = AppError.unauthorized('Invalid token', 'INVALID_TOKEN');
+    }
+    if (err.name === 'TokenExpiredError') {
+        error = AppError.unauthorized('Token expired', 'TOKEN_EXPIRED');
+    }
+
+    // Handle syntax errors in JSON body parsing
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        error = AppError.badRequest('Invalid JSON in request body', 'INVALID_JSON');
+    }
+
     if (process.env.NODE_ENV === 'development') {
         sendErrorDev(error, res);
     } else {

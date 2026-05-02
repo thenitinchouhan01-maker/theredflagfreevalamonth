@@ -86,7 +86,51 @@ app.use(mongoSanitize({
     });
   }
 }));
-app.use(xss()); if (config.nodeEnv === 'development') { app.use(morgan('dev')); } else { app.use(morgan('combined', { stream: { write: function (message) { logger.info(message.trim()); } } })); } app.set('trust proxy', 1);
+app.use(xss());
+
+if (config.nodeEnv === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined', {
+    stream: {
+      write: function (message) {
+        logger.info(message.trim());
+      }
+    }
+  }));
+}
+
+app.set('trust proxy', 1);
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Request logging middleware - logs every incoming request for debugging
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.info('Incoming request', {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    contentType: req.get('content-type'),
+    appUserId: req.headers['x-app-user-id'] || null,
+    deviceId: req.headers['x-device-id'] || null
+  });
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info';
+    logger[level]('Request completed', {
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      duration: duration + 'ms',
+      ip: req.ip
+    });
+  });
+
+  next();
+});
 
 // Root health routes (must be before /api routes)
 app.get('/', (req, res) => {
@@ -106,4 +150,20 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use('/api', routes); app.use(function (req, res) { res.status(404).json({ success: false, message: 'Route not found', errorCode: 'ROUTE_NOT_FOUND', path: req.originalUrl }); }); app.use(errorHandler); module.exports = app;
+app.use('/api', routes);
+
+// 404 handler for unmatched routes
+app.use(function (req, res) {
+  logger.warn('Route not found', { method: req.method, url: req.originalUrl, ip: req.ip });
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    errorCode: 'ROUTE_NOT_FOUND',
+    path: req.originalUrl
+  });
+});
+
+// Global error handler (must be last)
+app.use(errorHandler);
+
+module.exports = app;
