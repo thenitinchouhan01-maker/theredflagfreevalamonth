@@ -211,24 +211,31 @@ async function startServer() {
 
 // Graceful shutdown handlers
 process.on('unhandledRejection', (err) => {
-  logger.error('Unhandled Promise Rejection:', {
+  logger.error('Unhandled Promise Rejection', {
     error: err.message,
-    stack: err.stack
+    stack: err.stack,
+    name: err.name,
+    code: err.code
   });
-  
+
   console.error('\n❌ Unhandled Promise Rejection');
   console.error('Error:', err.message);
   console.error('Stack:', err.stack);
-  
-  // Don't exit immediately in production - log and continue
-  if (process.env.NODE_ENV !== 'production') {
-    if (server) {
-      server.close(() => {
-        process.exit(1);
-      });
-    } else {
+
+  // Gracefully shut down in all environments — an unhandled rejection
+  // means the process is in an unknown state and must not keep serving traffic.
+  if (server) {
+    server.close(() => {
+      console.error('❌ Server closed due to unhandled rejection. Exiting.');
       process.exit(1);
-    }
+    });
+    // Force exit if server.close() hangs
+    setTimeout(() => {
+      console.error('❌ Forced exit after timeout.');
+      process.exit(1);
+    }, 10000).unref();
+  } else {
+    process.exit(1);
   }
 });
 
