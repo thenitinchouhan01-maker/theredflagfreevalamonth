@@ -7,14 +7,8 @@ const logger = require('./utils/logger');
 // Validate environment variables before starting
 validateEnv();
 
-// ✅ RAILWAY OPTIMIZATION: Use Railway's dynamic PORT
-const PORT = parseInt(process.env.PORT) || config.port || 3000;
-const MAX_PORT_ATTEMPTS = process.env.NODE_ENV === 'production' ? 1 : 10;
+const PORT = process.env.PORT || 8080;
 let server = null;
-
-console.log('🚀 [RAILWAY] Starting server...');
-console.log('🚀 [RAILWAY] PORT:', PORT);
-console.log('🚀 [RAILWAY] NODE_ENV:', process.env.NODE_ENV || 'development');
 
 /**
  * 🧹 PERMANENT FIX: Clean payment collection and ensure correct indexes
@@ -85,129 +79,16 @@ mongoose.connection.once('open', async () => {
   }
 });
 
-/**
- * Find available port starting from the configured port
- * @param {number} startPort - Starting port number
- * @param {number} maxAttempts - Maximum number of ports to try
- * @returns {Promise<number>} Available port number
- */
-async function findAvailablePort(startPort, maxAttempts = MAX_PORT_ATTEMPTS) {
-  const net = require('net');
-  
-  for (let i = 0; i < maxAttempts; i++) {
-    const port = startPort + i;
-    
-    const isAvailable = await new Promise((resolve) => {
-      const testServer = net.createServer();
-      
-      testServer.once('error', (err) => {
-        if (err.code === 'EADDRINUSE') {
-          resolve(false);
-        } else {
-          resolve(false);
-        }
-      });
-      
-      testServer.once('listening', () => {
-        testServer.close();
-        resolve(true);
-      });
-      
-      testServer.listen(port);
-    });
-    
-    if (isAvailable) {
-      return port;
-    }
-  }
-  
-  throw new Error(`No available port found after trying ${maxAttempts} ports starting from ${startPort}`);
-}
+// Start server FIRST (Railway-safe)
+server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`ENV: ${process.env.NODE_ENV}`);
+});
 
-/**
- * Start the server - Railway optimized
- */
-async function startServer() {
-  try {
-    // ✅ RAILWAY: In production, use exact PORT provided by Railway
-    if (process.env.NODE_ENV === 'production') {
-      // Railway provides exact port - don't search for alternatives
-      server = app.listen(PORT, '0.0.0.0', () => {
-        const configSummary = getConfigSummary();
-        
-        console.log('\n' + '='.repeat(60));
-        console.log('  🚀 DeepTrust API Server Started (Railway)');
-        console.log('='.repeat(60));
-        console.log(`  Environment:     ${configSummary.environment}`);
-        console.log(`  Port:            ${PORT}`);
-        console.log(`  Database:        ${configSummary.database}`);
-        console.log(`  Razorpay:        ${configSummary.razorpay}`);
-        console.log(`  Storage:         ${configSummary.storage}`);
-        console.log(`  CORS:            ${configSummary.cors}`);
-        console.log('='.repeat(60));
-        console.log(`  Health Check:    /health`);
-        console.log(`  API Base:        /api`);
-        console.log('='.repeat(60) + '\n');
-        
-        logger.info('DeepTrust API server running on Railway', {
-          port: PORT,
-          environment: config.nodeEnv
-        });
-      });
-    } else {
-      // Development: Find available port
-      const availablePort = await findAvailablePort(PORT);
-      
-      if (availablePort !== PORT) {
-        console.log(`\n⚠️  Port ${PORT} is already in use. Using port ${availablePort} instead.\n`);
-        logger.warn(`Port ${PORT} in use, switching to ${availablePort}`);
-      }
-      
-      server = app.listen(availablePort, () => {
-        const configSummary = getConfigSummary();
-        
-        console.log('\n' + '='.repeat(60));
-        console.log('  🚀 DeepTrust API Server Started');
-        console.log('='.repeat(60));
-        console.log(`  Environment:     ${configSummary.environment}`);
-        console.log(`  Port:            ${availablePort}`);
-        console.log(`  Database:        ${configSummary.database}`);
-        console.log(`  Razorpay:        ${configSummary.razorpay}`);
-        console.log(`  Storage:         ${configSummary.storage}`);
-        console.log(`  CORS:            ${configSummary.cors}`);
-        console.log(`  Real Credentials: ${configSummary.hasRealCredentials ? '✅ Yes' : '⚠️  No (using test values)'}`);
-        console.log('='.repeat(60));
-        console.log(`  Health Check:    http://localhost:${availablePort}/health`);
-        console.log(`  API Base:        http://localhost:${availablePort}/api`);
-        console.log('='.repeat(60) + '\n');
-        
-        logger.info('DeepTrust API server running', {
-          port: availablePort,
-          environment: config.nodeEnv,
-          hasRealCredentials: configSummary.hasRealCredentials
-        });
-      });
-    }
-    
-    // Handle server-level errors
-    server.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        console.error(`\n❌ Port ${PORT} is already in use`);
-        logger.error('Port already in use', { port: PORT, error: err.message });
-        process.exit(1);
-      } else {
-        console.error('\n❌ Server error:', err.message);
-        logger.error('Server error', { error: err.message, stack: err.stack });
-        process.exit(1);
-      }
-    });
-    
-  } catch (error) {
-    console.error('\n❌ Failed to start server:', error.message);
-    logger.error('Server startup failed', { error: error.message, stack: error.stack });
-    process.exit(1);
-  }
-}
+// Connect DB AFTER server starts (non-blocking)
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB error:', err));
 
 // Graceful shutdown handlers
 process.on('unhandledRejection', (err) => {
@@ -280,8 +161,5 @@ process.on('SIGINT', () => {
     process.exit(0);
   }
 });
-
-// Start the server
-startServer();
 
 module.exports = server;

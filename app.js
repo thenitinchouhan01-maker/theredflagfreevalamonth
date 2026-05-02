@@ -133,6 +133,10 @@ app.use((req, res, next) => {
 });
 
 // Root health routes (must be before /api routes)
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
+
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
