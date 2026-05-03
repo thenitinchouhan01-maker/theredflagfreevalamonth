@@ -70,6 +70,11 @@ const searchSchema = new mongoose.Schema(
     metadata: {
       type: mongoose.Schema.Types.Mixed
     },
+    resultType: {
+      type: String,
+      enum: ['red', 'green'],
+      default: 'red'
+    },
     ipAddress: {
       type: String
     },

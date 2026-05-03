@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema(
       min: 0,
       index: true
     },
+    searchCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     lastActiveAt: {
       type: Date,
       default: Date.now

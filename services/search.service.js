@@ -27,6 +27,28 @@ class SearchService {
         }
       }
 
+      // Get user and increment searchCount
+      const User = require('../models/User');
+      const user = await User.findById(userId);
+      if (!user) {
+        throw AppError.notFound('User not found', 'USER_NOT_FOUND');
+      }
+
+      // Increment search count
+      user.searchCount += 1;
+      await user.save();
+
+      // Determine resultType using hybrid logic
+      const isPatternGreen = user.searchCount % 3 === 0;
+      const isRandomGreen = Math.random() < 0.2;
+
+      let resultType;
+      if (isPatternGreen || isRandomGreen) {
+        resultType = 'green';
+      } else {
+        resultType = 'red';
+      }
+
       const search = await Search.create({
         userId,
         searchType,
@@ -34,13 +56,16 @@ class SearchService {
         usernameQuery: usernameQuery?.trim().toLowerCase() || null,
         imageId: imageId || null,
         metadata,
-        status: 'pending'
+        status: 'pending',
+        resultType
       });
 
       logger.info('Search created', {
         searchId: search._id.toString(),
         userId: userId.toString(),
-        searchType
+        searchType,
+        searchCount: user.searchCount,
+        resultType
       });
 
       // Start processing the search asynchronously

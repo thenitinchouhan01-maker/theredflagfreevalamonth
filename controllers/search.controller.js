@@ -33,6 +33,7 @@ class SearchController {
         imageId: search.imageId,
         status: search.status,
         progress: search.progress,
+        resultType: search.resultType,
         createdAt: search.createdAt
       }
     }, 'Search created successfully');
@@ -62,6 +63,7 @@ class SearchController {
         imageId: search.imageId,
         status: search.status,
         progress: search.progress,
+        resultType: search.resultType,
         sourcesSearched: search.sourcesSearched,
         startedAt: search.startedAt,
         completedAt: search.completedAt,
@@ -97,6 +99,7 @@ class SearchController {
         } : null,
         status: search.status,
         progress: search.progress,
+        resultType: search.resultType,
         sourcesSearched: search.sourcesSearched,
         totalSources: search.totalSources,
         completedSources: search.completedSources,
