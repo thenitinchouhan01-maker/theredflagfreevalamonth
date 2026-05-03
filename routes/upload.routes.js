@@ -6,22 +6,22 @@ const { identifyUser } = require('./user.routes');
 
 const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'), false);
+      cb(new Error('Only images allowed'));
     }
-  }
+  },
 });
 
 // Multer error handler wrapper
 const handleUpload = (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
+      console.error('MULTER_ERROR:', err);
       return res.status(400).json({
         success: false,
         message: err.code === 'LIMIT_FILE_SIZE' ? 'File too large. Maximum size is 10MB.' : err.message,
@@ -30,6 +30,7 @@ const handleUpload = (req, res, next) => {
       });
     }
     if (err) {
+      console.error('FILE_FILTER_ERROR:', err);
       return res.status(400).json({
         success: false,
         message: err.message,

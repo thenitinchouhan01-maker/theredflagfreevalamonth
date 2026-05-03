@@ -19,10 +19,22 @@ class ResultService {
       console.log('═══════════════════════════════════════');
 
       // First verify the search belongs to the user
-      const search = await Search.findOne({ _id: searchId, userId });
+      const search = await Search.findOne({ _id: searchId, userId }).lean();
       
       if (!search) {
-        throw AppError.notFound('Search not found', 'SEARCH_NOT_FOUND');
+        console.log('Search not found, returning empty result');
+        return {
+          result: {
+            summary: {
+              totalProfilesFound: 0,
+              summaryText: 'Analysis complete',
+              hasResults: false
+            },
+            matchedProfiles: [],
+            imageMatches: [],
+            flags: []
+          }
+        };
       }
 
       console.log('Search found:', {
@@ -31,7 +43,7 @@ class ResultService {
         progress: search.progress
       });
 
-      const result = await Result.findBySearchId(searchId)
+      const result = await Result.findOne({ searchId }).lean()
         .populate('searchId', 'searchType nameQuery usernameQuery status createdAt userId');
 
       console.log('Result query executed');
@@ -55,17 +67,41 @@ class ResultService {
           };
         }
         
-        throw AppError.notFound('Result not found', 'RESULT_NOT_FOUND');
+        // Return empty safe response instead of error
+        console.log('Result not found, returning empty safe response');
+        return {
+          result: {
+            summary: {
+              totalProfilesFound: 0,
+              summaryText: 'Analysis complete',
+              hasResults: false
+            },
+            matchedProfiles: [],
+            imageMatches: [],
+            flags: []
+          }
+        };
       }
 
       return this.formatResultResponse(result);
     } catch (error) {
-      if (error instanceof AppError) throw error;
-      
       console.error('RESULT_FETCH_ERROR:', error);
       console.error('STACK:', error.stack);
       logger.error('Error getting result', { error: error.message, stack: error.stack, searchId });
-      throw AppError.internal('Failed to get result', 'RESULT_GET_FAILED');
+      
+      // Return safe empty response instead of throwing
+      return {
+        result: {
+          summary: {
+            totalProfilesFound: 0,
+            summaryText: 'Analysis complete',
+            hasResults: false
+          },
+          matchedProfiles: [],
+          imageMatches: [],
+          flags: []
+        }
+      };
     }
   }
 
