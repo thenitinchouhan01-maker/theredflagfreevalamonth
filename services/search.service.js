@@ -164,6 +164,7 @@ class SearchService {
       console.log('CREATING RESULT FROM REPORT DATA');
       console.log('searchId:', search._id.toString());
       console.log('userId:', search.userId.toString());
+      console.log('resultType:', search.resultType);
       console.log('reportData.summary:', JSON.stringify(reportData.summary, null, 2));
       console.log('reportData.matchedProfiles.length:', reportData.matchedProfiles?.length || 0);
       console.log('reportData.imageMatches.length:', reportData.imageMatches?.length || 0);
@@ -171,10 +172,26 @@ class SearchService {
       console.log('reportData.sources.length:', reportData.sources?.length || 0);
       console.log('═══════════════════════════════════════');
 
+      // Override summaryText based on resultType
+      let summaryText;
+      if (search.resultType === 'green') {
+        summaryText = `🟢 Green Flag Insight: This profile appears safe based on our analysis. The digital footprint shows consistent and transparent online behavior across platforms. However, always maintain healthy communication and trust your instincts in any relationship.`;
+      } else {
+        summaryText = `🔴 Red Flag Insight: This profile shows patterns that warrant caution. Our analysis detected inconsistencies or concerning behaviors in the digital footprint. Stay vigilant, trust your gut feelings, and prioritize your safety in all interactions.`;
+      }
+
+      // Update summary with resultType-based text
+      const updatedSummary = {
+        ...reportData.summary,
+        summaryText
+      };
+
+      console.log('Updated summaryText based on resultType:', summaryText);
+
       const result = await Result.create({
         searchId: search._id,
         userId: search.userId,
-        summary: reportData.summary,
+        summary: updatedSummary,
         matchedProfiles: reportData.matchedProfiles,
         imageMatches: reportData.imageMatches,
         flags: reportData.flags,
@@ -185,13 +202,14 @@ class SearchService {
       console.log('═══════════════════════════════════════');
       console.log('RESULT CREATED SUCCESSFULLY');
       console.log('resultId:', result._id.toString());
-      console.log('result.summary:', JSON.stringify(result.summary, null, 2));
+      console.log('result.summary.summaryText:', result.summary.summaryText);
       console.log('result.matchedProfiles.length:', result.matchedProfiles?.length || 0);
       console.log('═══════════════════════════════════════');
 
       logger.info('Result created from pipeline', {
         resultId: result._id.toString(),
         searchId: search._id.toString(),
+        resultType: search.resultType,
         profilesFound: reportData.matchedProfiles.length
       });
 
@@ -200,6 +218,7 @@ class SearchService {
         userId: search.userId.toString(),
         searchId: search._id.toString(),
         resultId: result._id.toString(),
+        resultType: search.resultType,
         profiles: reportData.summary.totalProfilesFound,
         images: reportData.summary.totalImageMatches,
         confidence: reportData.summary.overallConfidence,
