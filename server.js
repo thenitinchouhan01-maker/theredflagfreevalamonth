@@ -7,8 +7,8 @@ const logger = require('./utils/logger');
 // Validate environment variables before starting
 validateEnv();
 
-const PORT = process.env.PORT || 8080;
-let server = null;
+const PORT = Number(process.env.PORT) || 3000;
+
 
 /**
  * 🧹 PERMANENT FIX: Clean payment collection and ensure correct indexes
@@ -79,10 +79,10 @@ mongoose.connection.once('open', async () => {
   }
 });
 
-// Start server FIRST (Railway-safe)
-server = app.listen(PORT, '0.0.0.0', () => {
+// Start server FIRST (Render-compatible)
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`ENV: ${process.env.NODE_ENV}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
 });
 
 // Connect DB AFTER server starts (non-blocking)

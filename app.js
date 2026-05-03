@@ -29,41 +29,16 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 // - Razorpay payment gateway
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, curl, Razorpay)
-    if (!origin) {
-      return callback(null, true);
-    }
-    
-    // Allow all origins in development
-    if (config.nodeEnv === 'development') {
-      return callback(null, true);
-    }
-    
-    // In production, check configured origins
-    const allowedOrigins = config.cors.origin;
-    if (allowedOrigins === '*' || allowedOrigins === true) {
-      return callback(null, true);
-    }
-    
-    if (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // Reject unknown origins in production
-    logger.warn('CORS blocked origin', { origin, ip: origin });
-    callback(new Error('Not allowed by CORS'));
+  origin: function(origin, callback) {
+    return callback(null, true);
   },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS'],
   allowedHeaders: [
     'Content-Type',
-    'Authorization',
-    'x-device-id',
     'x-app-user-id',
-    'x-razorpay-signature'  // For webhook (future use)
+    'Authorization',
   ],
   credentials: true,
-  maxAge: 86400  // 24 hours
 };
 
 app.use(cors(corsOptions));
