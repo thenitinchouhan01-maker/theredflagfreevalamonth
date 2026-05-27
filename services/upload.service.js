@@ -102,7 +102,10 @@ class UploadService {
       if (error instanceof AppError) throw error;
       console.error('❌ UPLOAD_ERROR:', error.message, '| code:', error.code, '| name:', error.name);
       logger.error('Error uploading image to R2', { error: error.message, errorCode: error.code, userId: userId?.toString() });
-      throw AppError.internal('Failed to upload image', 'UPLOAD_FAILED');
+      
+      // Return detailed error in development/production for debugging
+      const detailedError = `${error.name || 'Error'}: ${error.message} (code: ${error.code || 'N/A'})`;
+      throw AppError.internal(detailedError, 'UPLOAD_FAILED');
     }
   }
 
