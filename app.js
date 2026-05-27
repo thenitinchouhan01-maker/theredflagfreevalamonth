@@ -142,26 +142,6 @@ app.use(function (req, res) {
   });
 });
 
-// Global error handler (must be last)
-app.use((err, req, res, next) => {
-  console.error('GLOBAL_ERROR_HANDLER:', err);
-  console.error('Stack:', err.stack);
-  
-  logger.error('Unhandled error', {
-    error: err.message,
-    stack: err.stack,
-    url: req.originalUrl,
-    method: req.method
-  });
-
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    errorCode: 'SERVER_ERROR',
-    timestamp: new Date().toISOString()
-  });
-});
-
 app.use(errorHandler);
 
 module.exports = app;
