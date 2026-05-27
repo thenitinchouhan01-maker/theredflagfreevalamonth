@@ -6,44 +6,16 @@ const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 
 class UploadService {
-  constructor() {
-    // Initialize S3 client for Cloudflare R2
-    // CRITICAL: Endpoint must NOT include bucket name
-    // Correct: https://account-id.r2.cloudflarestorage.com
-    // Wrong: https://bucket-name.account-id.r2.cloudflarestorage.com
-    
-    const r2Endpoint = config.r2.endpoint;
-    
-    // Validate endpoint format
-    if (!r2Endpoint || !r2Endpoint.startsWith('https://')) {
-      console.error('❌ R2_ENDPOINT invalid or missing');
-      console.error('Current endpoint:', r2Endpoint);
-      console.error('Expected format: https://account-id.r2.cloudflarestorage.com');
-    }
-    
-    // Log configuration for debugging
-    console.log('🔧 Initializing R2 Client:');
-    console.log('  Endpoint:', r2Endpoint);
-    console.log('  Bucket:', config.r2.bucketName);
-    console.log('  Region:', config.r2.region);
-    console.log('  Access Key:', config.r2.accessKeyId ? '✅ SET' : '❌ MISSING');
-    console.log('  Secret Key:', config.r2.secretAccessKey ? '✅ SET' : '❌ MISSING');
-    
-    this.s3Client = new S3Client({
+  _getClient() {
+    return new S3Client({
       region: config.r2.region || 'auto',
-      endpoint: r2Endpoint,
+      endpoint: config.r2.endpoint,
       credentials: {
         accessKeyId: config.r2.accessKeyId,
         secretAccessKey: config.r2.secretAccessKey
       },
-      // Force path-style addressing for R2 compatibility
       forcePathStyle: true
     });
-    
-    this.bucketName = config.r2.bucketName;
-    this.publicUrl = config.r2.publicUrl;
-    
-    console.log('✅ R2 Client initialized successfully');
   }
 
   /**
@@ -65,11 +37,10 @@ class UploadService {
    * @returns {string} Public URL
    */
   getPublicUrl(r2Key) {
-    if (this.publicUrl) {
-      return `${this.publicUrl}/${r2Key}`;
+    if (config.r2.publicUrl) {
+      return `${config.r2.publicUrl}/${r2Key}`;
     }
-    // Fallback to R2 endpoint URL
-    return `${config.r2.endpoint}/${this.bucketName}/${r2Key}`;
+    return `${config.r2.endpoint}/${config.r2.bucketName}/${r2Key}`;
   }
 
   /**
@@ -84,26 +55,21 @@ class UploadService {
         throw AppError.badRequest('No file provided', 'NO_FILE');
       }
 
-      // Check if R2 is configured
-      if (!this.bucketName || !config.r2.accessKeyId) {
-        console.error('❌ UPLOAD_ERROR: Storage not configured');
-        console.error('bucketName:', this.bucketName);
-        console.error('accessKeyId:', config.r2.accessKeyId ? 'SET' : 'NOT SET');
-        console.error('endpoint:', config.r2.endpoint);
+      if (!config.r2.bucketName || !config.r2.accessKeyId || !config.r2.secretAccessKey) {
+        console.error('❌ R2 not configured:', {
+          bucket: config.r2.bucketName || 'MISSING',
+          accessKey: config.r2.accessKeyId ? 'SET' : 'MISSING',
+          secret: config.r2.secretAccessKey ? 'SET' : 'MISSING',
+          endpoint: config.r2.endpoint || 'MISSING'
+        });
         throw AppError.internal('Storage not configured', 'STORAGE_NOT_CONFIGURED');
       }
 
       const r2Key = this.generateR2Key(userId.toString(), file.originalname);
-      
-      console.log('📤 Uploading to R2:');
-      console.log('  Bucket:', this.bucketName);
-      console.log('  Key:', r2Key);
-      console.log('  Size:', file.size, 'bytes');
-      console.log('  Type:', file.mimetype);
-      
-      // Upload to R2
+      const s3Client = this._getClient();
+
       const command = new PutObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: config.r2.bucketName,
         Key: r2Key,
         Body: file.buffer,
         ContentType: file.mimetype,
@@ -113,70 +79,29 @@ class UploadService {
         }
       });
 
-      await this.s3Client.send(command);
-      
-      console.log('✅ Upload successful to R2');
+      await s3Client.send(command);
 
       const fileUrl = this.getPublicUrl(r2Key);
-      
-      console.log('🔗 Public URL:', fileUrl);
 
-      // Create upload record in database
       const upload = await Upload.create({
         userId,
         originalName: file.originalname,
         r2Key,
         fileUrl,
         format: file.mimetype.split('/')[1],
-        width: null, // Will be populated if image processing is added
+        width: null,
         height: null,
         bytes: file.size,
         resourceType: 'image',
         folder: 'uploads'
       });
 
-      logger.info('Image uploaded to R2', {
-        uploadId: upload._id.toString(),
-        userId: userId.toString(),
-        r2Key,
-        fileUrl
-      });
-
+      logger.info('Image uploaded to R2', { uploadId: upload._id.toString(), userId: userId.toString(), r2Key });
       return upload;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      
-      console.error('❌ UPLOAD_ERROR:', error.message);
-      console.error('Error Code:', error.code);
-      console.error('Error Name:', error.name);
-      console.error('STACK:', error.stack);
-      
-      // Specific error handling for R2/S3 errors
-      if (error.code === 'ENOTFOUND') {
-        console.error('❌ DNS Resolution Failed');
-        console.error('Endpoint:', config.r2.endpoint);
-        console.error('Check: Is R2_ENDPOINT correct in .env?');
-        throw AppError.internal('Storage endpoint not reachable', 'STORAGE_ENDPOINT_ERROR');
-      }
-      
-      if (error.name === 'NoSuchBucket') {
-        console.error('❌ Bucket not found:', this.bucketName);
-        throw AppError.internal('Storage bucket not found', 'BUCKET_NOT_FOUND');
-      }
-      
-      if (error.name === 'InvalidAccessKeyId' || error.name === 'SignatureDoesNotMatch') {
-        console.error('❌ Invalid R2 credentials');
-        throw AppError.internal('Storage authentication failed', 'STORAGE_AUTH_FAILED');
-      }
-      
-      logger.error('Error uploading image to R2', {
-        error: error.message,
-        errorCode: error.code,
-        errorName: error.name,
-        stack: error.stack,
-        userId: userId?.toString()
-      });
-      
+      console.error('❌ UPLOAD_ERROR:', error.message, '| code:', error.code, '| name:', error.name);
+      logger.error('Error uploading image to R2', { error: error.message, errorCode: error.code, userId: userId?.toString() });
       throw AppError.internal('Failed to upload image', 'UPLOAD_FAILED');
     }
   }
@@ -233,11 +158,12 @@ class UploadService {
 
       // Delete from R2
       try {
+        const s3Client = this._getClient();
         const command = new DeleteObjectCommand({
-          Bucket: this.bucketName,
+          Bucket: config.r2.bucketName,
           Key: upload.r2Key
         });
-        await this.s3Client.send(command);
+        await s3Client.send(command);
       } catch (r2Error) {
         logger.warn('Failed to delete from R2, continuing with DB deletion', {
           error: r2Error.message,
