@@ -8,17 +8,42 @@ const { v4: uuidv4 } = require('uuid');
 class UploadService {
   constructor() {
     // Initialize S3 client for Cloudflare R2
+    // CRITICAL: Endpoint must NOT include bucket name
+    // Correct: https://account-id.r2.cloudflarestorage.com
+    // Wrong: https://bucket-name.account-id.r2.cloudflarestorage.com
+    
+    const r2Endpoint = config.r2.endpoint;
+    
+    // Validate endpoint format
+    if (!r2Endpoint || !r2Endpoint.startsWith('https://')) {
+      console.error('❌ R2_ENDPOINT invalid or missing');
+      console.error('Current endpoint:', r2Endpoint);
+      console.error('Expected format: https://account-id.r2.cloudflarestorage.com');
+    }
+    
+    // Log configuration for debugging
+    console.log('🔧 Initializing R2 Client:');
+    console.log('  Endpoint:', r2Endpoint);
+    console.log('  Bucket:', config.r2.bucketName);
+    console.log('  Region:', config.r2.region);
+    console.log('  Access Key:', config.r2.accessKeyId ? '✅ SET' : '❌ MISSING');
+    console.log('  Secret Key:', config.r2.secretAccessKey ? '✅ SET' : '❌ MISSING');
+    
     this.s3Client = new S3Client({
-      region: config.r2.region,
-      endpoint: config.r2.endpoint,
+      region: config.r2.region || 'auto',
+      endpoint: r2Endpoint,
       credentials: {
         accessKeyId: config.r2.accessKeyId,
         secretAccessKey: config.r2.secretAccessKey
-      }
+      },
+      // Force path-style addressing for R2 compatibility
+      forcePathStyle: true
     });
     
     this.bucketName = config.r2.bucketName;
     this.publicUrl = config.r2.publicUrl;
+    
+    console.log('✅ R2 Client initialized successfully');
   }
 
   /**
@@ -61,13 +86,20 @@ class UploadService {
 
       // Check if R2 is configured
       if (!this.bucketName || !config.r2.accessKeyId) {
-        console.error('UPLOAD_ERROR: Storage not configured');
+        console.error('❌ UPLOAD_ERROR: Storage not configured');
         console.error('bucketName:', this.bucketName);
         console.error('accessKeyId:', config.r2.accessKeyId ? 'SET' : 'NOT SET');
+        console.error('endpoint:', config.r2.endpoint);
         throw AppError.internal('Storage not configured', 'STORAGE_NOT_CONFIGURED');
       }
 
       const r2Key = this.generateR2Key(userId.toString(), file.originalname);
+      
+      console.log('📤 Uploading to R2:');
+      console.log('  Bucket:', this.bucketName);
+      console.log('  Key:', r2Key);
+      console.log('  Size:', file.size, 'bytes');
+      console.log('  Type:', file.mimetype);
       
       // Upload to R2
       const command = new PutObjectCommand({
@@ -82,8 +114,12 @@ class UploadService {
       });
 
       await this.s3Client.send(command);
+      
+      console.log('✅ Upload successful to R2');
 
       const fileUrl = this.getPublicUrl(r2Key);
+      
+      console.log('🔗 Public URL:', fileUrl);
 
       // Create upload record in database
       const upload = await Upload.create({
@@ -102,19 +138,45 @@ class UploadService {
       logger.info('Image uploaded to R2', {
         uploadId: upload._id.toString(),
         userId: userId.toString(),
-        r2Key
+        r2Key,
+        fileUrl
       });
 
       return upload;
     } catch (error) {
       if (error instanceof AppError) throw error;
-      console.error('UPLOAD_ERROR:', error);
+      
+      console.error('❌ UPLOAD_ERROR:', error.message);
+      console.error('Error Code:', error.code);
+      console.error('Error Name:', error.name);
       console.error('STACK:', error.stack);
+      
+      // Specific error handling for R2/S3 errors
+      if (error.code === 'ENOTFOUND') {
+        console.error('❌ DNS Resolution Failed');
+        console.error('Endpoint:', config.r2.endpoint);
+        console.error('Check: Is R2_ENDPOINT correct in .env?');
+        throw AppError.internal('Storage endpoint not reachable', 'STORAGE_ENDPOINT_ERROR');
+      }
+      
+      if (error.name === 'NoSuchBucket') {
+        console.error('❌ Bucket not found:', this.bucketName);
+        throw AppError.internal('Storage bucket not found', 'BUCKET_NOT_FOUND');
+      }
+      
+      if (error.name === 'InvalidAccessKeyId' || error.name === 'SignatureDoesNotMatch') {
+        console.error('❌ Invalid R2 credentials');
+        throw AppError.internal('Storage authentication failed', 'STORAGE_AUTH_FAILED');
+      }
+      
       logger.error('Error uploading image to R2', {
         error: error.message,
+        errorCode: error.code,
+        errorName: error.name,
         stack: error.stack,
         userId: userId?.toString()
       });
+      
       throw AppError.internal('Failed to upload image', 'UPLOAD_FAILED');
     }
   }
