@@ -24,49 +24,21 @@ class UploadController {
       });
     }
 
-    try {
-      const upload = await uploadService.uploadImage(file, userId);
+    const upload = await uploadService.uploadImage(file, userId);
 
-      const response = new ApiResponse(res);
-      response.created({
-        upload: {
-          id: upload._id,
-          originalName: upload.originalName,
-          fileUrl: upload.fileUrl,
-          format: upload.format,
-          width: upload.width,
-          height: upload.height,
-          size: upload.sizeFormatted,
-          createdAt: upload.createdAt
-        }
-      }, 'Image uploaded successfully');
-    } catch (error) {
-      console.error('UPLOAD_SERVICE_ERROR:', error);
-      
-      // If storage fails, return mock success (don't crash)
-      if (error.message.includes('storage') || error.message.includes('R2')) {
-        console.log('Storage failed, returning mock success');
-        return res.status(201).json({
-          success: true,
-          message: 'Image uploaded successfully',
-          data: {
-            upload: {
-              id: 'mock-' + Date.now(),
-              originalName: file.originalname,
-              fileUrl: 'https://placeholder.com/image.jpg',
-              format: file.mimetype.split('/')[1],
-              width: 800,
-              height: 600,
-              size: '1.2 MB',
-              createdAt: new Date().toISOString()
-            }
-          },
-          timestamp: new Date().toISOString()
-        });
+    const response = new ApiResponse(res);
+    response.created({
+      upload: {
+        id: upload._id,
+        originalName: upload.originalName,
+        fileUrl: upload.fileUrl,
+        format: upload.format,
+        width: upload.width,
+        height: upload.height,
+        size: upload.sizeFormatted,
+        createdAt: upload.createdAt
       }
-      
-      throw error;
-    }
+    }, 'Image uploaded successfully');
   });
 
   /**
