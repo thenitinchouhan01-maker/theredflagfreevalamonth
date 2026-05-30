@@ -2,6 +2,8 @@
 
 A production-grade backend for a paid anonymous mobile app that allows public-profile discovery and report generation.
 
+**Production URL**: `https://web-production-7a3f6.up.railway.app`
+
 ---
 
 ## Tech Stack

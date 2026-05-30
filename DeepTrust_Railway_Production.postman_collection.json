@@ -577,7 +577,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "https://deeptrustgfbfbackend-production.up.railway.app",
+      "value": "https://web-production-7a3f6.up.railway.app",
       "type": "string"
     },
     {

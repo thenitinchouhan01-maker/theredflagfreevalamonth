@@ -5,12 +5,12 @@ echo ============================================================
 echo   RAILWAY API TESTING - DeepTrust Backend
 echo ============================================================
 echo.
-echo Production URL: https://deeptrustgfbfbackend-production.up.railway.app
+echo Production URL: https://web-production-7a3f6.up.railway.app
 echo.
 echo Starting tests in 5 seconds...
 timeout /t 5 /nobreak >nul
 
-set BASE_URL=https://deeptrustgfbfbackend-production.up.railway.app
+set BASE_URL=https://web-production-7a3f6.up.railway.app
 set APP_USER_ID=
 set PLAN_ID=
 set IMAGE_ID=
