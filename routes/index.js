@@ -8,6 +8,7 @@ const uploadRoutes = require('./upload.routes');
 const searchRoutes = require('./search.routes');
 const resultRoutes = require('./result.routes');
 const reportRoutes = require('./report.routes');
+const instagramSearchRoutes = require('./instagramSearch.routes');
 
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -63,5 +64,6 @@ router.use('/uploads', uploadRoutes);
 router.use('/searches', searchRoutes);
 router.use('/results', resultRoutes);
 router.use('/reports', reportRoutes);
+router.use('/search', instagramSearchRoutes);
 
 module.exports = router;
