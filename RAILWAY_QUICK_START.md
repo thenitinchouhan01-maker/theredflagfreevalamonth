@@ -22,18 +22,18 @@ https://railway.app/dashboard
 
 ```bash
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://thenitinchouhan01_db_user:YZtfPaeac8rzxs2I@cluster0.pk8jlko.mongodb.net/deepshearch?appName=Cluster0
-R2_BUCKET_NAME=deepsharch
-R2_ACCOUNT_ID=a37ed06a683c771cea2564dafe3453a1
-R2_ENDPOINT=https://a37ed06a683c771cea2564dafe3453a1.r2.cloudflarestorage.com
-R2_ACCESS_KEY_ID=6de93966bea1fb0220784f1630bae4d6
-R2_SECRET_ACCESS_KEY=9213f9707917d8e434d1c88fc75ae1cc359c8e64dfa56e3f42c320512700c7cf
+MONGODB_URI=your_mongodb_uri
+R2_BUCKET_NAME=your_r2_bucket_name
+R2_ACCOUNT_ID=your_r2_account_id
+R2_ENDPOINT=your_r2_endpoint
+R2_ACCESS_KEY_ID=your_r2_access_key_id
+R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_REGION=auto
-RAZORPAY_KEY_ID=rzp_live_SguG8PGSDWC5eP
-RAZORPAY_KEY_SECRET=6F4KzbjEfgi8XwG27yRnH0aO
-SERPER_API_KEY=a271debd0f2da19114bf019eb7519b8ed4f1bba2
-GOOGLE_VISION_API_KEY=AIzaSyBFQZwvagGfxv9ADCsZ9fiJWGn9C2E7K1M
-OPENROUTER_API_KEY=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
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+SERPER_API_KEY=your_serper_api_key
+GOOGLE_VISION_API_KEY=your_google_vision_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
 CORS_ORIGIN=*
 ```
 

@@ -102,9 +102,9 @@ No additional packages needed!
 ## 🔑 API KEYS (Already Configured)
 
 ```bash
-SERPER_API_KEY=a271debd0f2da19114bf019eb7519b8ed4f1bba2
-GOOGLE_VISION_API_KEY=AIzaSyBFQZwvagGfxv9ADCsZ9fiJWGn9C2E7K1M
-OPENROUTER_API_KEY=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
+SERPER_API_KEY=your_serper_api_key
+GOOGLE_VISION_API_KEY=your_google_vision_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
 All keys added to `.env` file.
