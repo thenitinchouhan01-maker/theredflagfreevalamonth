@@ -15,14 +15,10 @@ class PlanController {
       plans: plans.map(plan => ({
         id: plan._id,
         name: plan.name,
-        durationDays: plan.durationDays,
         price: plan.price,
-        currency: plan.currency,
-        formattedPrice: plan.formattedPrice,
-        durationText: plan.durationText,
-        description: plan.description,
-        features: plan.features,
-        isPopular: plan.isPopular
+        credits: plan.credits,
+        currency: plan.currency || 'INR',
+        isPopular: plan.isPopular || false
       }))
     });
   });
@@ -41,14 +37,10 @@ class PlanController {
       plan: {
         id: plan._id,
         name: plan.name,
-        durationDays: plan.durationDays,
         price: plan.price,
-        currency: plan.currency,
-        formattedPrice: plan.formattedPrice,
-        durationText: plan.durationText,
-        description: plan.description,
-        features: plan.features,
-        isPopular: plan.isPopular,
+        credits: plan.credits,
+        currency: plan.currency || 'INR',
+        isPopular: plan.isPopular || false,
         createdAt: plan.createdAt
       }
     });

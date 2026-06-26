@@ -6,13 +6,13 @@ const logger = require('../utils/logger');
 const plans = [
   {
     name: '3 Searches Pack',
-    price: 129,
+    price: 49,
     credits: 3,
     isActive: true
   },
   {
     name: '10 Searches Pack',
-    price: 199,
+    price: 99,
     credits: 10,
     isActive: true
   }
